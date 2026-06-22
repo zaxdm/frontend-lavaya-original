@@ -42,7 +42,7 @@ export default function HistorialDetallePage() {
         const token = localStorage.getItem('token'); // ajusta según cómo guardes el token
 
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/pedidos/${id}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/pedidos/${id}`,
           {
             headers: {
               'Content-Type': 'application/json',
