@@ -1,0 +1,199 @@
+@import "tailwindcss";
+
+/* ─── Habilitar dark mode por clase en Tailwind v4 ──────────── */
+@variant dark (&:where(.dark, .dark *));
+
+/* ─── Variables de color ─────────────────────────────────────── */
+:root {
+  --bg-base:        #f8fafc;
+  --bg-card:        #ffffff;
+  --bg-card-hover:  #f1f5f9;
+  --bg-sidebar:     #0f172a;
+  --bg-input:       #ffffff;
+  --bg-muted:       #f1f5f9;
+
+  --text-primary:   #0f172a;
+  --text-secondary: #64748b;
+  --text-hint:      #94a3b8;
+
+  --border:         #e2e8f0;
+  --border-focus:   #3b82f6;
+
+  --accent:         #2563eb;
+  --accent-hover:   #1d4ed8;
+  --accent-fg:      #ffffff;
+}
+
+.dark {
+  --bg-base:        #0f172a;
+  --bg-card:        #1e293b;
+  --bg-card-hover:  #263148;
+  --bg-sidebar:     #020617;
+  --bg-input:       #1e293b;
+  --bg-muted:       #263148;
+
+  --text-primary:   #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-hint:      #475569;
+
+  --border:         #334155;
+  --border-focus:   #3b82f6;
+
+  --accent:         #3b82f6;
+  --accent-hover:   #2563eb;
+  --accent-fg:      #ffffff;
+}
+
+/* ─── Base ───────────────────────────────────────────────────── */
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-geist-sans, Arial, sans-serif);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* ─── Clases semánticas reutilizables ────────────────────────── */
+.ly-page    { background-color: var(--bg-base) !important; }
+.ly-card    { background-color: var(--bg-card) !important; border-color: var(--border) !important; color: var(--text-primary) !important; }
+.ly-muted   { background-color: var(--bg-muted) !important; }
+.ly-border  { border-color: var(--border) !important; }
+.ly-text    { color: var(--text-primary) !important; }
+.ly-text-2  { color: var(--text-secondary) !important; }
+.ly-input   { background-color: var(--bg-input) !important; color: var(--text-primary) !important; border-color: var(--border) !important; }
+
+/* ─── Tablas ─────────────────────────────────────────────────── */
+.ly-table thead tr  { background-color: var(--bg-muted) !important; border-color: var(--border) !important; }
+.ly-table tbody tr  { border-color: var(--border) !important; }
+.ly-table tbody tr:hover { background-color: var(--bg-card-hover) !important; }
+.ly-table th        { color: var(--text-secondary) !important; }
+.ly-table td        { color: var(--text-primary) !important; }
+
+/* ─── Filtros / header barra ─────────────────────────────────── */
+.ly-toolbar {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border) !important;
+}
+
+/* ─── Inputs globales ────────────────────────────────────────── */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+textarea,
+select {
+  background-color: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+input::placeholder, textarea::placeholder {
+  color: var(--text-hint) !important;
+  opacity: 1;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: var(--border-focus) !important;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* ─── Paginación ─────────────────────────────────────────────── */
+.ly-btn-outline {
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+  background-color: var(--bg-card) !important;
+}
+.ly-btn-outline:hover:not(:disabled) {
+  background-color: var(--bg-muted) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+/* ─── Shell responsivo ───────────────────────────────────────── */
+
+/* Sidebar oculto en móvil por defecto */
+.app-sidebar {
+  flex-shrink: 0;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Overlay oscuro detrás del sidebar en móvil */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 39;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+/* Topbar solo visible en móvil */
+.app-topbar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background-color: var(--bg-sidebar);
+  height: 52px;
+  align-items: center;
+  padding: 0 14px;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  /* Topbar visible en móvil */
+  .app-topbar {
+    display: flex;
+  }
+
+  /* Sidebar se convierte en drawer lateral */
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100dvh;
+    z-index: 40;
+    transform: translateX(-100%);
+    overflow-y: auto;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+  }
+
+  .app-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay.open {
+    display: block;
+  }
+
+  /* Botón X dentro del drawer en móvil */
+  .sidebar-close-btn {
+    display: flex !important;
+  }
+
+  /* El contenido ocupa todo el ancho */
+  .app-main {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* En desktop el sidebar siempre visible, topbar oculto */
+@media (min-width: 768px) {
+  .app-sidebar {
+    transform: translateX(0) !important;
+    position: relative !important;
+    height: auto !important;
+  }
+  .app-topbar {
+    display: none !important;
+  }
+  .sidebar-overlay {
+    display: none !important;
+  }
+}

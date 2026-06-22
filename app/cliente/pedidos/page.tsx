@@ -1,0 +1,378 @@
+'use client';
+// app/cliente/pedidos/page.tsx — Crear nuevo pedido
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ShoppingBag, MapPin, Calendar, CreditCard, Plus, Minus, CheckCircle2 } from 'lucide-react';
+import PageHeader from '@/components/ui/PageHeader';
+import Spinner from '@/components/ui/Spinner';
+import PayPalButton from '@/components/ui/PayPalButton';
+import { clienteApi } from '@/lib/api';
+import { convertirPenAUsd } from '@/lib/currency';
+import toast from 'react-hot-toast';
+
+const S = {
+  card: { backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' },
+  section: { padding: '14px 18px', borderBottom: '1px solid var(--border)' },
+  input: { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', boxSizing: 'border-box' as const },
+  label: { display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase' as const, letterSpacing: '0.04em' },
+};
+
+export default function ClientePedidos() {
+  const router = useRouter();
+  const [paso, setPaso] = useState<1 | 2 | 3 | 4>(1); // Paso 4 es pago PayPal
+  const [direcciones, setDirecciones] = useState<any[]>([]);
+  const [catalogo, setCatalogo] = useState<any[]>([]);
+  const [membresias, setMembresias] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+  const [paypalConfig, setPaypalConfig] = useState<any>(null);
+  const [pedidoId, setPedidoId] = useState<string | null>(null);
+
+  const [direccionId, setDireccionId] = useState('');
+  const [cantidades, setCantidades] = useState<Record<string, number>>({});
+  const [metodoPago, setMetodoPago] = useState<'PAYPAL' | 'EFECTIVO'>('EFECTIVO');
+  const [fechaRecoleccion, setFechaRecoleccion] = useState('');
+  const [notas, setNotas] = useState('');
+
+  const loadData = async () => {
+    try {
+      const [dRes, cRes, mRes] = await Promise.all([
+        clienteApi.getDirecciones(),
+        clienteApi.getCatalogo(),
+        clienteApi.getMembresias(),
+      ]);
+      setDirecciones(dRes);
+      setCatalogo(cRes.filter((c: any) => c.activo));
+      setMembresias(mRes);
+    } catch {
+      toast.error('Error cargando datos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const activeMembership = membresias.find(m => m.estado === 'ACTIVA');
+  const descuento = activeMembership ? activeMembership.descuento : 0;
+
+  const totalPrendas = Object.values(cantidades).reduce((a, b) => a + b, 0);
+  const hayExtra = totalPrendas > 10;
+  const montoBruto = catalogo.reduce((acc, c) => {
+    const cant = cantidades[c.nombre] ?? 0;
+    if (!cant) return acc;
+    const precio = hayExtra ? c.precioUnitario + c.precioExtra : c.precioUnitario;
+    return acc + precio * cant;
+  }, 0);
+  const montoEstimado = montoBruto * (1 - descuento / 100);
+
+  const confirmar = async () => {
+    if (!direccionId) { toast.error('Selecciona una dirección'); return; }
+    if (totalPrendas === 0) { toast.error('Agrega al menos una prenda'); return; }
+
+    // Validar fecha si se ingresó
+    if (fechaRecoleccion) {
+      const fecha = new Date(fechaRecoleccion);
+      const ahora = new Date();
+      const minFutura = new Date(ahora.getTime() + 60 * 60 * 1000); // 1 hora mínimo
+      if (fecha < minFutura) {
+        toast.error('La fecha de recolección debe ser al menos 1 hora en el futuro');
+        return;
+      }
+      const maxFutura = new Date(ahora.getTime() + 30 * 24 * 60 * 60 * 1000);
+      if (fecha > maxFutura) {
+        toast.error('La fecha de recolección no puede ser más de 30 días en el futuro');
+        return;
+      }
+    }
+
+    if (metodoPago === 'PAYPAL') {
+      setPaso(4);
+      setEnviando(true);
+      try {
+        const prendas = Object.entries(cantidades).filter(([, v]) => v > 0).map(([tipo, cantidad]) => ({ tipo, cantidad }));
+        const orderData = await clienteApi.createOrder({
+          direccionId,
+          prendas,
+          metodoPago,
+          fechaRecoleccion: fechaRecoleccion || null,
+          notasCliente: notas || null,
+        });
+
+        const config = await clienteApi.crearOrdenPaypalPedido(orderData.pedido.id);
+        setPedidoId(orderData.pedido.id);
+        setPaypalConfig(config);
+      } catch (err: any) {
+        toast.error(err.message || 'Error al crear pedido');
+        setPaso(3);
+      } finally {
+        setEnviando(false);
+      }
+    } else {
+      setEnviando(true);
+      try {
+        const prendas = Object.entries(cantidades).filter(([, v]) => v > 0).map(([tipo, cantidad]) => ({ tipo, cantidad }));
+        await clienteApi.createOrder({
+          direccionId,
+          prendas,
+          metodoPago,
+          fechaRecoleccion: fechaRecoleccion || null,
+          notasCliente: notas || null,
+        });
+        toast.success('¡Pedido creado! Te notificaremos cuando un repartidor lo acepte.');
+        router.push('/cliente/dashboard');
+      } catch (err: any) {
+        toast.error(err.message || 'Error al crear pedido');
+      } finally {
+        setEnviando(false);
+      }
+    }
+  };
+
+  const handleApprove = async (paypalData: any) => {
+    try {
+      await clienteApi.capturarPagoPaypalPedido({
+        pedidoId,
+        paypalOrderId: paypalData.orderID,
+        paypalCaptureId: paypalData.orderID,
+      });
+      toast.success('Pago completado y pedido creado!');
+      router.push('/cliente/dashboard');
+    } catch (err: any) {
+      toast.error(err.message || 'Error al confirmar pago');
+    }
+  };
+
+  if (loading) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spinner /></div>;
+
+  const PASOS = ['Dirección', 'Prendas', 'Confirmar', metodoPago === 'PAYPAL' ? 'Pago' : ''];
+
+  return (
+    <div style={{ flex: 1, backgroundColor: 'var(--bg-base)' }}>
+      <PageHeader title="Nuevo pedido" subtitle="Selecciona dónde y qué vas a lavar" />
+
+      <div style={{ padding: 24, maxWidth: 680, display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+        {/* Stepper */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+          {PASOS.slice(0, metodoPago === 'PAYPAL' ? 4 : 3).map((p, i) => (
+            <div key={p} style={{ display: 'flex', alignItems: 'center', flex: i < (metodoPago === 'PAYPAL' ? 3 : 2) ? 1 : undefined }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => { if (i + 1 < paso) setPaso((i + 1) as any); }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0, backgroundColor: paso > i + 1 ? '#22c55e' : paso === i + 1 ? 'var(--accent)' : 'var(--border)', color: paso >= i + 1 ? '#fff' : 'var(--text-secondary)', transition: 'all 0.2s' }}>
+                  {paso > i + 1 ? <CheckCircle2 style={{ width: 14, height: 14 }} /> : i + 1}
+                </div>
+                <span style={{ fontSize: 13, fontWeight: paso === i + 1 ? 600 : 400, color: paso === i + 1 ? 'var(--text-primary)' : 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{p}</span>
+              </div>
+              {i < (metodoPago === 'PAYPAL' ? 3 : 2) && <div style={{ flex: 1, height: 2, backgroundColor: paso > i + 1 ? '#22c55e' : 'var(--border)', margin: '0 10px', transition: 'background 0.2s' }} />}
+            </div>
+          ))}
+        </div>
+
+        {/* Paso 1: Dirección */}
+        {paso === 1 && (
+          <div style={S.card}>
+            <div style={{ ...S.section, borderBottom: '1px solid var(--border)' }}>
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <MapPin style={{ width: 16, height: 16, color: 'var(--accent)' }} /> Dirección de recolección
+              </p>
+            </div>
+            <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {direcciones.length === 0 ? (
+                <p style={{ color: 'var(--text-secondary)', fontSize: 14, textAlign: 'center', padding: '20px 0' }}>No tienes direcciones guardadas. Agrega una desde tu perfil.</p>
+              ) : direcciones.map((d: any) => (
+                <div key={d.id} onClick={() => setDireccionId(d.id)}
+                  style={{ padding: 14, borderRadius: 10, border: `2px solid ${direccionId === d.id ? 'var(--accent)' : 'var(--border)'}`, cursor: 'pointer', backgroundColor: direccionId === d.id ? 'rgba(37,99,235,0.05)' : 'var(--bg-base)', transition: 'all 0.15s' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <MapPin style={{ width: 16, height: 16, color: direccionId === d.id ? 'var(--accent)' : 'var(--text-secondary)', marginTop: 1, flexShrink: 0 }} />
+                    <div>
+                      {d.esPrincipal && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Principal</span>}
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: '2px 0 0' }}>{d.calle} {d.numero}, {d.colonia}</p>
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '2px 0 0' }}>{d.ciudad}, {d.estado} Código postal {d.codigoPostal}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <button disabled={!direccionId} onClick={() => setPaso(2)}
+                style={{ marginTop: 4, padding: '11px 16px', borderRadius: 10, border: 'none', backgroundColor: direccionId ? 'var(--accent)' : 'var(--border)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: direccionId ? 'pointer' : 'not-allowed', transition: 'background 0.15s' }}>
+                Continuar →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Paso 2: Prendas */}
+        {paso === 2 && (
+          <div style={S.card}>
+            <div style={{ ...S.section }}>
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ShoppingBag style={{ width: 16, height: 16, color: 'var(--accent)' }} /> Selecciona las prendas
+              </p>
+              {hayExtra && <p style={{ fontSize: 12, color: '#f59e0b', margin: '4px 0 0' }}>⚠ Más de 10 prendas — se aplica cargo extra</p>}
+              {activeMembership && <p style={{ fontSize: 12, color: '#22c55e', margin: '4px 0 0' }}>🎉 {descuento}% de descuento por membresía</p>}
+            </div>
+            <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {catalogo.map((c: any) => {
+                const cant = cantidades[c.nombre] ?? 0;
+                const precio = hayExtra ? c.precioUnitario + c.precioExtra : c.precioUnitario;
+                const precioFinal = precio * (1 - descuento / 100);
+                return (
+                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 10, border: `1.5px solid ${cant > 0 ? 'var(--accent)' : 'var(--border)'}`, backgroundColor: cant > 0 ? 'rgba(37,99,235,0.04)' : 'var(--bg-base)', transition: 'all 0.15s' }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0, textTransform: 'capitalize' }}>{c.nombre}</p>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        {descuento > 0 && <p style={{ fontSize: 11, color: 'var(--text-secondary)', textDecoration: 'line-through' }}>S/{precio.toFixed(2)}/prenda</p>}
+                        <p style={{ fontSize: 12, color: descuento > 0 ? 'var(--accent)' : 'var(--text-secondary)', margin: '2px 0 0', fontWeight: descuento > 0 ? 600 : 400 }}>S/{precioFinal.toFixed(2)}/prenda</p>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button onClick={() => setCantidades(p => ({ ...p, [c.nombre]: Math.max(0, (p[c.nombre] ?? 0) - 1) }))}
+                        style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer', backgroundColor: cant > 0 ? 'rgba(37,99,235,0.15)' : 'var(--border)', color: cant > 0 ? 'var(--accent)' : 'var(--text-hint)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Minus style={{ width: 12, height: 12 }} />
+                      </button>
+                      <span style={{ width: 24, textAlign: 'center', fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>{cant}</span>
+                      <button onClick={() => setCantidades(p => ({ ...p, [c.nombre]: (p[c.nombre] ?? 0) + 1 }))}
+                        style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer', backgroundColor: 'rgba(37,99,235,0.15)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Plus style={{ width: 12, height: 12 }} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {totalPrendas > 0 && (
+                <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: 'var(--bg-muted)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{totalPrendas} prendas</span>
+                    {descuento > 0 && <span style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'line-through' }}>S/{montoBruto.toFixed(2)}</span>}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 4, borderTop: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Total</span>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>S/{montoEstimado.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <button onClick={() => setPaso(1)} style={{ flex: 1, padding: '11px 16px', borderRadius: 10, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: 14, cursor: 'pointer' }}>← Atrás</button>
+                <button disabled={totalPrendas === 0} onClick={() => setPaso(3)} style={{ flex: 2, padding: '11px 16px', borderRadius: 10, border: 'none', backgroundColor: totalPrendas > 0 ? 'var(--accent)' : 'var(--border)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: totalPrendas > 0 ? 'pointer' : 'not-allowed' }}>
+                  Continuar →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Paso 3: Confirmar */}
+        {paso === 3 && (
+          <div style={S.card}>
+            <div style={{ ...S.section }}>
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Confirma tu pedido</p>
+            </div>
+            <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Resumen */}
+              <div style={{ padding: '12px 14px', borderRadius: 10, backgroundColor: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Prendas</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{totalPrendas}</span>
+                </div>
+                {hayExtra && <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontSize: 13, color: '#f59e0b' }}>Cargo por +10 prendas</span>
+                  <span style={{ fontSize: 13, color: '#f59e0b' }}>aplicado</span>
+                </div>}
+                {descuento > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontSize: 13, color: '#22c55e' }}>Descuento {descuento}%</span>
+                  <span style={{ fontSize: 13, color: '#22c55e', textDecoration: 'line-through' }}>S/{montoBruto.toFixed(2)}</span>
+                </div>}
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Total estimado</span>
+                  <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>S/{montoEstimado.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Fecha y horario */}
+              <div>
+                <label style={S.label}><Calendar style={{ width: 12, height: 12, display: 'inline', marginRight: 4 }} />Fecha de recolección (opcional)</label>
+                <input
+                  type="datetime-local"
+                  value={fechaRecoleccion}
+                  min={(() => {
+                    const d = new Date(Date.now() + 60 * 60 * 1000);
+                    return d.toISOString().slice(0, 16);
+                  })()}
+                  max={(() => {
+                    const d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                    return d.toISOString().slice(0, 16);
+                  })()}
+                  onChange={e => setFechaRecoleccion(e.target.value)}
+                  style={S.input}
+                />
+                <p style={{ fontSize: 11, color: 'var(--text-hint)', marginTop: 4 }}>
+                  Mínimo 1 hora de anticipación · Máximo 30 días en el futuro
+                </p>
+              </div>
+
+              {/* Método de pago */}
+              <div>
+                <label style={S.label}><CreditCard style={{ width: 12, height: 12, display: 'inline', marginRight: 4 }} />Método de pago</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {[{ v: 'EFECTIVO', l: 'Efectivo', e: '💵' }, { v: 'PAYPAL', l: 'PayPal', e: '💳' }].map(opt => (
+                    <div key={opt.v} onClick={() => setMetodoPago(opt.v as 'PAYPAL' | 'EFECTIVO')}
+                      style={{ padding: '12px 14px', borderRadius: 10, border: `2px solid ${metodoPago === opt.v ? 'var(--accent)' : 'var(--border)'}`, cursor: 'pointer', textAlign: 'center', backgroundColor: metodoPago === opt.v ? 'rgba(37,99,235,0.05)' : 'var(--bg-base)', transition: 'all 0.15s' }}>
+                      <div style={{ fontSize: 22, marginBottom: 4 }}>{opt.e}</div>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: metodoPago === opt.v ? 'var(--accent)' : 'var(--text-primary)', margin: 0 }}>{opt.l}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notas */}
+              <div>
+                <label style={S.label}>Instrucciones (opcional)</label>
+                <textarea value={notas} onChange={e => setNotas(e.target.value)} rows={2} placeholder="Ej: Tocar timbre, dejar en recepción..." style={{ ...S.input, resize: 'none' }} />
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setPaso(2)} style={{ flex: 1, padding: '11px 16px', borderRadius: 10, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: 14, cursor: 'pointer' }}>← Atrás</button>
+                <button disabled={enviando} onClick={confirmar}
+                  style={{ flex: 2, padding: '11px 16px', borderRadius: 10, border: 'none', backgroundColor: enviando ? 'var(--border)' : 'var(--accent)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: enviando ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  {enviando && <Spinner className="w-4 h-4 border-white border-t-transparent" />}
+                  {enviando ? 'Preparando pago...' : `Confirmar — S/${montoEstimado.toFixed(2)}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Paso 4: PayPal */}
+        {paso === 4 && paypalConfig && (
+          <div style={S.card}>
+            <div style={{ ...S.section }}>
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Completa tu pago</p>
+            </div>
+            <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ padding: '12px 14px', borderRadius: 10, backgroundColor: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Total a pagar</span>
+                  <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent)' }}>S/{paypalConfig.monto.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <PayPalButton
+                clientId={paypalConfig.paypalClientId}
+                currency="USD"
+                amount={convertirPenAUsd(paypalConfig.monto)}
+                description={paypalConfig.descripcion}
+                onApprove={handleApprove}
+              />
+
+              <button onClick={() => setPaso(3)}
+                style={{ width: '100%', padding: '11px 16px', borderRadius: 10, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: 14, cursor: 'pointer' }}>
+                ← Volver a la confirmación
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
