@@ -3,24 +3,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-
-interface Pedido {
-  id: string;
-  estado: string;
-  fecha: string;
-  total: number;
-  items?: {
-    id: string;
-    descripcion: string;
-    cantidad: number;
-    precio: number;
-  }[];
-  direccion?: string;
-  repartidor?: {
-    nombre: string;
-    telefono?: string;
-  };
-}
+import { pedidosApi } from '@/lib/api';
+import type { Pedido } from '@/types';
 
 export default function HistorialDetallePage() {
   const params = useParams();
@@ -38,31 +22,16 @@ export default function HistorialDetallePage() {
       try {
         setLoading(true);
         setError(null);
-
-        const token = localStorage.getItem('token'); // ajusta según cómo guardes el token
-
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/pedidos/${id}`,
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token && { Authorization: `Bearer ${token}` }),
-            },
-            credentials: 'include',
-          }
-        );
-
-        if (!res.ok) {
-          if (res.status === 404) {
-            throw new Error('Pedido no encontrado');
-          }
-          throw new Error('Error al cargar el pedido');
-        }
-
-        const data = await res.json();
+        const data = await pedidosApi.get(id);
         setPedido(data);
       } catch (err: any) {
-        setError(err.message || 'Ocurrió un error inesperado');
+        if (err.status === 404) {
+          setError('Pedido no encontrado');
+        } else if (err.status === 401) {
+          setError('Tu sesión expiró. Inicia sesión de nuevo.');
+        } else {
+          setError(err.message || 'Ocurrió un error inesperado');
+        }
       } finally {
         setLoading(false);
       }
@@ -107,35 +76,8 @@ export default function HistorialDetallePage() {
       </button>
 
       <h1 className="text-2xl font-bold mb-2">Pedido #{pedido.id}</h1>
-      <p className="text-gray-600 mb-1">Fecha: {new Date(pedido.fecha).toLocaleDateString('es-PE')}</p>
+      {/* Ajusta los campos siguientes según tu tipo Pedido real en types.ts */}
       <p className="text-gray-600 mb-1">Estado: <span className="font-semibold">{pedido.estado}</span></p>
-      <p className="text-gray-600 mb-4">Total: S/ {pedido.total.toFixed(2)}</p>
-
-      {pedido.direccion && (
-        <p className="text-gray-600 mb-4">Dirección de entrega: {pedido.direccion}</p>
-      )}
-
-      {pedido.repartidor && (
-        <div className="mb-4">
-          <p className="font-semibold">Repartidor asignado:</p>
-          <p>{pedido.repartidor.nombre}</p>
-          {pedido.repartidor.telefono && <p>{pedido.repartidor.telefono}</p>}
-        </div>
-      )}
-
-      {pedido.items && pedido.items.length > 0 && (
-        <div>
-          <h2 className="font-semibold mb-2">Items</h2>
-          <ul className="divide-y">
-            {pedido.items.map((item) => (
-              <li key={item.id} className="py-2 flex justify-between">
-                <span>{item.descripcion} x{item.cantidad}</span>
-                <span>S/ {(item.precio * item.cantidad).toFixed(2)}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }
