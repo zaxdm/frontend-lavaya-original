@@ -8,7 +8,7 @@ import Modal from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { empleadoApi, pedidosApi } from '@/lib/api';
 import { ESTADO_PEDIDO_LABEL, ESTADO_PEDIDO_COLOR, ESTADO_PAGO_LABEL, ESTADO_PAGO_COLOR, formatDate, formatCurrency } from '@/lib/utils';
-import type { Pedido, EstadoPedido, Repartidor } from '@/types';
+import type { Pedido, EstadoPedido, Repartidor, EstadoPago } from '@/types';
 import toast from 'react-hot-toast';
 
 const ESTADOS_ACTIVOS = ['PENDIENTE', 'CONFIRMADO', 'RECOLECTADO', 'EN_PROCESO', 'LISTO'];
@@ -176,7 +176,7 @@ export default function EmpleadoPedidos() {
                       <td style={{ padding: '12px 14px', fontSize: 12, color: 'var(--text-secondary)' }}>{formatDate(p.fechaEntregaEstimada)}</td>
                       <td style={{ padding: '12px 14px', fontSize: 12 }}>
                         {p.pago
-                          ? <span style={{ color: ESTADO_PAGO_COLOR[p.pago.estado], fontWeight: 600 }}>{ESTADO_PAGO_LABEL[p.pago.estado]}</span>
+                          ? <span style={{ color: ESTADO_PAGO_COLOR[p.pago.estado as EstadoPago], fontWeight: 600 }}>{ESTADO_PAGO_LABEL[p.pago.estado as EstadoPago]}</span>
                           : <span style={{ color: 'var(--text-hint)' }}>—</span>
                         }
                       </td>
