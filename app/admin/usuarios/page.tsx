@@ -313,9 +313,14 @@ export default function UsuariosPage() {
   // Solo CLIENTE y REPARTIDOR pueden tener membresía
   const puedeHolderMembresia = (rol: string) => rol === 'CLIENTE' || rol === 'REPARTIDOR';
 
-  // Membresía activa del usuario — el backend ya filtra por estado ACTIVA y trae solo 1
-  const membresiaActivaDeUsuario = (u: Usuario) =>
-    u.membresias?.[0] ?? undefined;
+  // Membresía activa: busca la primera con estado ACTIVA y fechaFin futura
+  const membresiaActivaDeUsuario = (u: Usuario) => {
+    if (!u.membresias?.length) return undefined;
+    const ahora = new Date();
+    return u.membresias.find(
+      m => m.estado === 'ACTIVA' && new Date(m.fechaFin) > ahora,
+    ) ?? u.membresias.find(m => m.estado === 'ACTIVA');
+  };
 
   const planConfig = (tipo?: string) => PLANES.find(p => p.tipo === tipo) ?? null;
 
