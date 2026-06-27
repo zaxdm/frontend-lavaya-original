@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, ShoppingBag, Users, Building2,
-  Package, ChevronRight, LogOut, Moon, Sun, Settings,
+  Package, ChevronRight, LogOut, Moon, Sun, Settings, UserCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,10 +22,11 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard',      href: '/admin/dashboard', icon: LayoutDashboard },
   { label: 'Pedidos',        href: '/admin/pedidos',   icon: ShoppingBag },
-  { label: 'Usuarios',       href: '/admin/usuarios',  icon: Users,     adminOnly: true },
-  { label: 'Empresas B2B',   href: '/admin/b2b',       icon: Building2, adminOnly: true },
-  { label: 'Catálogo',       href: '/admin/catalogo',  icon: Package,   adminOnly: true },
-  { label: 'Configuración',  href: '/admin/settings',  icon: Settings,  adminOnly: true },
+  { label: 'Usuarios',       href: '/admin/usuarios',  icon: Users,      adminOnly: true },
+  { label: 'Clientes',       href: '/admin/clientes',  icon: UserCheck,  adminOnly: true },
+  { label: 'Empresas B2B',   href: '/admin/b2b',       icon: Building2,  adminOnly: true },
+  { label: 'Catálogo',       href: '/admin/catalogo',  icon: Package,    adminOnly: true },
+  { label: 'Configuración',  href: '/admin/settings',  icon: Settings,   adminOnly: true },
 ];
 
 const EMPLEADO_NAV: NavItem[] = [

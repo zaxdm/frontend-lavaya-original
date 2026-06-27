@@ -27,7 +27,7 @@ function NotifColor(tipo: NotifItem['tipo']) {
   return 'rgba(245,158,11,0.12)';
 }
 
-export default function NotificationBell() {
+export default function NotificationBell({ cuentaHref = '/admin/cuenta' }: { cuentaHref?: string }) {
   const { notificaciones, noLeidas, permiso, marcarLeida, marcarTodasLeidas, limpiarTodas, solicitarPermiso } = useNotifications();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -187,7 +187,7 @@ export default function NotificationBell() {
           {/* Footer — button en lugar de Link para evitar <a> anidado dentro del <a> del sidebar */}
           <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
             <button
-              onClick={() => { setOpen(false); router.push('/admin/cuenta#notificaciones'); }}
+              onClick={() => { setOpen(false); router.push(`${cuentaHref}#notificaciones`); }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--accent)', fontWeight: 500, padding: 0 }}
             >
               Configurar notificaciones →

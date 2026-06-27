@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import Avatar from '@/components/ui/Avatar';
+import NotificationBell from './NotificationBell';
 
 const NAV = [
   { href: '/empleado/dashboard',    label: 'Dashboard',       icon: LayoutDashboard },
@@ -26,27 +27,33 @@ export default function EmpleadoSidebar() {
   return (
     <div style={{ backgroundColor: 'var(--bg-sidebar)', width: 240, minHeight: '100%', display: 'flex', flexDirection: 'column' }} className="text-white">
 
-      {/* Perfil */}
-      <Link href="/empleado/cuenta"
-        style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '12px 10px 0', padding: '10px 12px', borderRadius: 12, textDecoration: 'none', backgroundColor: pathname.startsWith('/empleado/cuenta') ? 'rgba(255,255,255,0.12)' : 'transparent', transition: 'background 0.15s' }}
-        className={cn(!pathname.startsWith('/empleado/cuenta') && 'hover:bg-white/10')}>
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.2)' }}>
-            <Avatar
-              src={user?.fotoPerfil}
-              nombre={user?.nombre ?? '?'}
-              apellido={user?.apellido ?? ''}
-              size={36}
-              gradient="linear-gradient(135deg,#7c3aed,#a855f7)"
-            />
+      {/* Perfil + campana */}
+      <div style={{ margin: '12px 10px 0', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <Link href="/empleado/cuenta"
+          style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, textDecoration: 'none', backgroundColor: pathname.startsWith('/empleado/cuenta') ? 'rgba(255,255,255,0.12)' : 'transparent', transition: 'background 0.15s', minWidth: 0 }}
+          className={cn(!pathname.startsWith('/empleado/cuenta') && 'hover:bg-white/10')}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.2)' }}>
+              <Avatar
+                src={user?.fotoPerfil}
+                nombre={user?.nombre ?? '?'}
+                apellido={user?.apellido ?? ''}
+                size={36}
+                gradient="linear-gradient(135deg,#7c3aed,#a855f7)"
+              />
+            </div>
+            <span style={{ position: 'absolute', bottom: 0, right: 0, width: 8, height: 8, backgroundColor: '#22c55e', borderRadius: '50%', border: '2px solid var(--bg-sidebar)' }} />
           </div>
-          <span style={{ position: 'absolute', bottom: 0, right: 0, width: 8, height: 8, backgroundColor: '#22c55e', borderRadius: '50%', border: '2px solid var(--bg-sidebar)' }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#fff', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.nombre} {user?.apellido}</p>
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: 0 }}>Empleado</p>
+          </div>
+        </Link>
+        {/* Campana de notificaciones */}
+        <div style={{ flexShrink: 0, paddingRight: 4 }}>
+          <NotificationBell cuentaHref="/empleado/cuenta" />
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: '#fff', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.nombre} {user?.apellido}</p>
-          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: 0 }}>Empleado</p>
-        </div>
-      </Link>
+      </div>
 
       <div style={{ margin: '10px 18px', borderTop: '1px solid rgba(255,255,255,0.08)' }} />
 
