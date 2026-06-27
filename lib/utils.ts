@@ -44,10 +44,34 @@ export const ESTADO_PEDIDO_LABEL: Record<EstadoPedido, string> = {
   CANCELADO:   'Cancelado',
 };
 
+// Etiquetas simplificadas para la vista del empleado (3 grupos)
+export const ESTADO_PEDIDO_LABEL_SIMPLE: Record<EstadoPedido, string> = {
+  PENDIENTE:   'Recibido',
+  CONFIRMADO:  'Recibido',
+  RECOLECTADO: 'Recibido',
+  EN_PROCESO:  'Lavando',
+  LISTO:       'Listo',
+  EN_CAMINO:   'En camino',
+  ENTREGADO:   'Entregado',
+  CANCELADO:   'Cancelado',
+};
+
+// Grupo simple al que pertenece cada estado
+export const GRUPO_ESTADO: Record<EstadoPedido, 'recibido' | 'lavando' | 'listo' | 'camino' | 'entregado' | 'cancelado'> = {
+  PENDIENTE:   'recibido',
+  CONFIRMADO:  'recibido',
+  RECOLECTADO: 'recibido',
+  EN_PROCESO:  'lavando',
+  LISTO:       'listo',
+  EN_CAMINO:   'camino',
+  ENTREGADO:   'entregado',
+  CANCELADO:   'cancelado',
+};
+
 export const ESTADO_PEDIDO_COLOR: Record<EstadoPedido, string> = {
   PENDIENTE:   'bg-yellow-100 text-yellow-800',
   CONFIRMADO:  'bg-blue-100 text-blue-800',
-  RECOLECTADO: 'bg-indigo-100 text-indigo-800',
+  RECOLECTADO: 'bg-yellow-100 text-yellow-800',
   EN_PROCESO:  'bg-purple-100 text-purple-800',
   LISTO:       'bg-teal-100 text-teal-800',
   EN_CAMINO:   'bg-orange-100 text-orange-800',

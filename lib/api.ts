@@ -209,6 +209,9 @@ export const empleadoApi = {
     patch<{ mensaje: string; pedido: Pedido }>(`/empleados/pedidos/${id}/en-proceso`, {}),
   marcarListo: (id: string, nota?: string) =>
     patch<{ mensaje: string; pedido: Pedido }>(`/empleados/pedidos/${id}/listo`, { nota }),
+  // Un solo clic: avanza automáticamente al siguiente estado del empleado
+  avanzarPedido: (id: string) =>
+    patch<{ mensaje: string; pedido: Pedido }>(`/empleados/pedidos/${id}/avanzar`, {}),
 
   // Asignar repartidor de entrega (pedidos LISTO)
   asignarEntrega: (pedidoId: string, repartidorId: string) =>

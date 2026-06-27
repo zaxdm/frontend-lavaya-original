@@ -3,7 +3,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Search, Filter, RefreshCw, Eye, UserCheck } from 'lucide-react';
 import { adminApi, pedidosApi } from '@/lib/api';
-import { ESTADO_PEDIDO_LABEL, ESTADO_PEDIDO_COLOR, ESTADO_PAGO_LABEL, ESTADO_PAGO_COLOR, formatDate, formatCurrency, cn } from '@/lib/utils';
+import {
+  ESTADO_PEDIDO_LABEL, ESTADO_PEDIDO_COLOR,
+  ESTADO_PEDIDO_LABEL_SIMPLE, GRUPO_ESTADO,
+  ESTADO_PAGO_LABEL, ESTADO_PAGO_COLOR,
+  formatDate, formatCurrency, cn,
+} from '@/lib/utils';
 import type { Pedido, EstadoPedido, Repartidor } from '@/types';
 import PageHeader from '@/components/ui/PageHeader';
 import Badge from '@/components/ui/Badge';
@@ -12,6 +17,17 @@ import Modal from '@/components/ui/Modal';
 import toast from 'react-hot-toast';
 
 const ESTADOS: EstadoPedido[] = ['PENDIENTE','CONFIRMADO','RECOLECTADO','EN_PROCESO','LISTO','EN_CAMINO','ENTREGADO','CANCELADO'];
+
+// Grupos para el filtro rápido del admin
+const GRUPOS_ADMIN = [
+  { value: '',          label: 'Todos' },
+  { value: 'recibido',  label: 'Recibido' },
+  { value: 'lavando',   label: 'Lavando' },
+  { value: 'listo',     label: 'Listo' },
+  { value: 'camino',    label: 'En camino' },
+  { value: 'entregado', label: 'Entregado' },
+  { value: 'cancelado', label: 'Cancelado' },
+];
 
 // Estilos inline con variables CSS — funcionan con cualquier versión de Tailwind
 const S = {
@@ -78,9 +94,14 @@ export default function PedidosPage() {
     finally { setSaving(false); }
   };
 
-  const pedidosFiltrados = buscar
-    ? pedidos.filter(p => p.id.includes(buscar) || p.cliente?.nombre?.toLowerCase().includes(buscar.toLowerCase()) || p.cliente?.email?.toLowerCase().includes(buscar.toLowerCase()))
-    : pedidos;
+  const pedidosFiltrados = pedidos.filter(p => {
+    const matchBuscar = !buscar || p.id.includes(buscar) || p.cliente?.nombre?.toLowerCase().includes(buscar.toLowerCase()) || p.cliente?.email?.toLowerCase().includes(buscar.toLowerCase());
+    // filtroEstado puede ser un grupo ('recibido','lavando',...) o un estado exacto ('PENDIENTE',...)
+    const isGrupo = GRUPOS_ADMIN.some(g => g.value === filtroEstado && g.value !== '');
+    const matchEstado = !filtroEstado ||
+      (isGrupo ? GRUPO_ESTADO[p.estado as EstadoPedido] === filtroEstado : p.estado === filtroEstado);
+    return matchBuscar && matchEstado;
+  });
 
   return (
     <div style={S.page}>
@@ -96,7 +117,9 @@ export default function PedidosPage() {
           <Filter className="w-4 h-4" style={{ color: 'var(--text-hint)' }} />
           <select value={filtroEstado} onChange={e => { setFiltroEstado(e.target.value); setPage(1); }} style={S.select}>
             <option value="">Todos los estados</option>
-            {ESTADOS.map(e => <option key={e} value={e}>{ESTADO_PEDIDO_LABEL[e]}</option>)}
+            {GRUPOS_ADMIN.slice(1).map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+            <option disabled>──────────</option>
+            {ESTADOS.map(e => <option key={e} value={e}>{ESTADO_PEDIDO_LABEL[e]} (detalle)</option>)}
           </select>
         </div>
         <button onClick={load} style={S.btnSm}><RefreshCw className="w-3.5 h-3.5" /> Actualizar</button>
@@ -133,7 +156,10 @@ export default function PedidosPage() {
                         <span style={{ fontWeight: 600 }}>{p.totalPrendas}</span>
                         {p.tienePrendasExtra && <span className="ml-1.5 text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full">+cargo</span>}
                       </td>
-                      <td style={S.td}><Badge className={ESTADO_PEDIDO_COLOR[p.estado]}>{ESTADO_PEDIDO_LABEL[p.estado]}</Badge></td>
+                      <td style={S.td}>
+                        <Badge className={ESTADO_PEDIDO_COLOR[p.estado]}>{ESTADO_PEDIDO_LABEL_SIMPLE[p.estado]}</Badge>
+                        <p style={{ fontSize: 10, color: 'var(--text-hint)', margin: '3px 0 0' }}>{ESTADO_PEDIDO_LABEL[p.estado]}</p>
+                      </td>
                       <td style={S.td}>
                         {p.pago ? (
                           <div>
