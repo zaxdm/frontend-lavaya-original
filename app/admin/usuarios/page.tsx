@@ -310,9 +310,12 @@ export default function UsuariosPage() {
     } finally { setSaving(false); }
   };
 
-  // Membresía activa del usuario (primera ACTIVA de la lista)
+  // Solo CLIENTE y REPARTIDOR pueden tener membresía
+  const puedeHolderMembresia = (rol: string) => rol === 'CLIENTE' || rol === 'REPARTIDOR';
+
+  // Membresía activa del usuario — el backend ya filtra por estado ACTIVA y trae solo 1
   const membresiaActivaDeUsuario = (u: Usuario) =>
-    u.membresias?.find(m => m.estado === 'ACTIVA');
+    u.membresias?.[0] ?? undefined;
 
   const planConfig = (tipo?: string) => PLANES.find(p => p.tipo === tipo) ?? null;
 
@@ -389,8 +392,10 @@ export default function UsuariosPage() {
                                 <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{memActiva.descuento}%</span>
                               )}
                             </div>
-                          ) : (
+                          ) : puedeHolderMembresia(u.rol) ? (
                             <span style={{ fontSize: 12, color: 'var(--text-hint)' }}>Sin plan</span>
+                          ) : (
+                            <span style={{ color: 'var(--text-hint)' }}>—</span>
                           )}
                         </td>
                         <td style={{ ...S.td, fontSize: 12, color: 'var(--text-secondary)' }}>
