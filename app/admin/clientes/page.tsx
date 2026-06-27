@@ -59,7 +59,7 @@ export default function AdminClientesPage() {
         nombre: u.nombre,
         apellido: u.apellido,
         email: u.email,
-        telefono: u.telefono,
+        telefono: u.telefono ?? undefined,
         activo: u.activo,
       })));
     } catch {
