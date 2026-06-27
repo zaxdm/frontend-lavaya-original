@@ -1,9 +1,15 @@
 'use client';
 // app/empleado/pedidos/page.tsx
+// Flujo real del empleado:
+//   - Ve TODOS los pedidos activos (incluyendo por recoger, para tener visión)
+//   - Solo puede ACTUAR en pedidos que ya están en la lavandería:
+//       RECOLECTADO → "Iniciar lavado" → EN_PROCESO
+//       EN_PROCESO  → "Listo"          → LISTO
+//   - PENDIENTE/CONFIRMADO: solo asignar repartidor, no puede "lavar"
 import { useEffect, useState, useCallback } from 'react';
 import {
   Package, RefreshCw, Eye, UserCheck,
-  ArrowRight, WashingMachine, CheckCircle2,
+  WashingMachine, CheckCircle2, Truck, Clock,
 } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import Spinner from '@/components/ui/Spinner';
@@ -13,36 +19,67 @@ import { useAuth } from '@/hooks/useAuth';
 import { empleadoApi, pedidosApi } from '@/lib/api';
 import {
   ESTADO_PEDIDO_LABEL, ESTADO_PEDIDO_COLOR,
-  ESTADO_PEDIDO_LABEL_SIMPLE, GRUPO_ESTADO,
   ESTADO_PAGO_LABEL, ESTADO_PAGO_COLOR,
+  GRUPO_ESTADO,
   formatDate, formatCurrency,
 } from '@/lib/utils';
 import type { Pedido, EstadoPedido, Repartidor, EstadoPago } from '@/types';
 import toast from 'react-hot-toast';
 
-// ─── Grupos simplificados que ve el empleado ──────────────────
+// ─── Grupos del empleado ──────────────────────────────────────
 const GRUPOS = [
-  { key: '',         label: 'Todos',          color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
-  { key: 'recibido', label: 'Recibido',        color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-  { key: 'lavando',  label: 'Lavando',         color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
-  { key: 'listo',    label: 'Listo',           color: '#14b8a6', bg: 'rgba(20,184,166,0.1)' },
+  { key: '',              label: 'Todos',           icon: Package,       color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
+  { key: 'por_recoger',   label: 'Por recoger',     icon: Truck,         color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+  { key: 'en_lavanderia', label: 'En lavandería',   icon: WashingMachine,color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+  { key: 'lavando',       label: 'Lavando',         icon: WashingMachine,color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
+  { key: 'listo',         label: 'Listo',           icon: CheckCircle2,  color: '#14b8a6', bg: 'rgba(20,184,166,0.1)' },
 ];
 
-// Botón de acción según estado actual
+// Acción del empleado según estado — SOLO para estados en lavandería
 function getAccion(estado: EstadoPedido): { label: string; icon: React.ElementType; color: string } | null {
-  if (['PENDIENTE', 'CONFIRMADO', 'RECOLECTADO'].includes(estado))
+  if (estado === 'RECOLECTADO')
     return { label: 'Iniciar lavado', icon: WashingMachine, color: '#8b5cf6' };
   if (estado === 'EN_PROCESO')
     return { label: 'Marcar listo', icon: CheckCircle2, color: '#14b8a6' };
   return null;
 }
 
+// Chip de estado visual para la tabla
+function EstadoChip({ estado }: { estado: string }) {
+  const chips: Record<string, { label: string; color: string; bg: string }> = {
+    por_recoger:   { label: 'Por recoger',    color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+    en_lavanderia: { label: 'En lavandería',  color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+    lavando:       { label: 'Lavando',        color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
+    listo:         { label: 'Listo',          color: '#14b8a6', bg: 'rgba(20,184,166,0.1)' },
+    camino:        { label: 'En camino',      color: '#f97316', bg: 'rgba(249,115,22,0.1)' },
+    entregado:     { label: 'Entregado',      color: '#22c55e', bg: 'rgba(34,197,94,0.1)'  },
+    cancelado:     { label: 'Cancelado',      color: '#ef4444', bg: 'rgba(239,68,68,0.1)'  },
+  };
+  const grupo = GRUPO_ESTADO[estado as EstadoPedido] ?? '';
+  const chip  = chips[grupo];
+  if (!chip) return null;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', padding: '3px 9px',
+        borderRadius: 999, fontSize: 11, fontWeight: 700,
+        backgroundColor: chip.bg, color: chip.color, width: 'fit-content',
+      }}>
+        {chip.label}
+      </span>
+      <span style={{ fontSize: 10, color: 'var(--text-hint)' }}>
+        {ESTADO_PEDIDO_LABEL[estado as EstadoPedido]}
+      </span>
+    </div>
+  );
+}
+
 export default function EmpleadoPedidos() {
   const { user, loading: authLoading } = useAuth();
-  const [pedidos, setPedidos]         = useState<any[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [filtroGrupo, setFiltroGrupo] = useState('');
-  const [actualizando, setActualizando] = useState<string | null>(null);
+  const [pedidos, setPedidos]             = useState<any[]>([]);
+  const [loading, setLoading]             = useState(true);
+  const [filtroGrupo, setFiltroGrupo]     = useState('');
+  const [actualizando, setActualizando]   = useState<string | null>(null);
 
   const [pedidoDetalle, setPedidoDetalle] = useState<Pedido | null>(null);
   const [showDetalle, setShowDetalle]     = useState(false);
@@ -61,14 +98,12 @@ export default function EmpleadoPedidos() {
       setPedidos(data);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Error cargando pedidos');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { if (!authLoading && user) load(); }, [authLoading, user, load]);
 
-  // Un solo clic avanza el pedido al siguiente estado
+  // Avanzar estado: empleado solo puede desde RECOLECTADO o EN_PROCESO
   const avanzar = async (p: any) => {
     setActualizando(p.id);
     try {
@@ -77,9 +112,7 @@ export default function EmpleadoPedidos() {
       load();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Error al actualizar');
-    } finally {
-      setActualizando(null);
-    }
+    } finally { setActualizando(null); }
   };
 
   const verDetalle = async (pedido: Pedido) => {
@@ -90,6 +123,7 @@ export default function EmpleadoPedidos() {
   const abrirAsignar = async (pedido: Pedido) => {
     setPedidoAsignar(pedido);
     setRepartidorSel('');
+    // Tipo de asignación automático según estado
     setTipoAsignacion(pedido.estado === 'LISTO' ? 'entrega' : 'recoleccion');
     try { const lista = await empleadoApi.getRepartidores('DISPONIBLE'); setRepartidores(lista); }
     catch { toast.error('Error cargando repartidores'); }
@@ -101,14 +135,14 @@ export default function EmpleadoPedidos() {
     setSaving(true);
     try {
       await empleadoApi.asignarRepartidor(pedidoAsignar.id, repartidorSel, tipoAsignacion);
-      toast.success('Repartidor asignado');
+      toast.success(`Repartidor asignado para ${tipoAsignacion}`);
       setShowAsignar(false); load();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Error al asignar');
     } finally { setSaving(false); }
   };
 
-  // Filtrar por grupo simple
+  // Filtrar por grupo
   const pedidosFiltrados = filtroGrupo
     ? pedidos.filter(p => GRUPO_ESTADO[p.estado as EstadoPedido] === filtroGrupo)
     : pedidos;
@@ -133,7 +167,7 @@ export default function EmpleadoPedidos() {
 
       <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-        {/* ── Tabs de grupos simplificados ── */}
+        {/* ── Tabs de flujo ── */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
           {GRUPOS.map(g => {
             const activo = filtroGrupo === g.key;
@@ -141,13 +175,14 @@ export default function EmpleadoPedidos() {
             return (
               <button key={g.key} onClick={() => setFiltroGrupo(g.key)}
                 style={{
-                  padding: '8px 18px', borderRadius: 999, fontSize: 13, fontWeight: activo ? 700 : 500,
+                  padding: '8px 16px', borderRadius: 999, fontSize: 13, fontWeight: activo ? 700 : 500,
                   border: `1.5px solid ${activo ? g.color : 'var(--border)'}`,
                   backgroundColor: activo ? g.bg : 'var(--bg-card)',
                   color: activo ? g.color : 'var(--text-secondary)',
                   cursor: 'pointer', transition: 'all 0.15s',
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
+                <g.icon style={{ width: 13, height: 13 }} />
                 {g.label}
                 <span style={{
                   minWidth: 20, height: 20, borderRadius: 999, fontSize: 11, fontWeight: 700,
@@ -167,9 +202,9 @@ export default function EmpleadoPedidos() {
           {loading ? (
             <div style={{ padding: 64, display: 'flex', justifyContent: 'center' }}><Spinner /></div>
           ) : pedidosFiltrados.length === 0 ? (
-            <div style={{ padding: '64px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: 'var(--text-secondary)' }}>
-              <Package style={{ width: 40, height: 40, opacity: 0.3 }} />
-              <p style={{ fontSize: 14, margin: 0 }}>Sin pedidos en este grupo</p>
+            <div style={{ padding: '64px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              <Package style={{ width: 40, height: 40, color: 'var(--text-hint)' }} />
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}>Sin pedidos en este grupo</p>
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
@@ -184,7 +219,14 @@ export default function EmpleadoPedidos() {
                 <tbody>
                   {pedidosFiltrados.map((p: any, i: number) => {
                     const accion = getAccion(p.estado);
-                    const grupo  = GRUPOS.find(g => g.key === GRUPO_ESTADO[p.estado as EstadoPedido]);
+                    const grupo  = GRUPO_ESTADO[p.estado as EstadoPedido];
+                    // Mostrar botón de asignar cuando:
+                    // - PENDIENTE/CONFIRMADO sin repartidor de recolección
+                    // - LISTO sin repartidor de entrega
+                    const puedeAsignar =
+                      (['PENDIENTE','CONFIRMADO'].includes(p.estado) && !p.repartidorRecoleccionId) ||
+                      (p.estado === 'LISTO' && !p.repartidorEntregaId);
+
                     return (
                       <tr key={p.id}
                         style={{ borderBottom: i < pedidosFiltrados.length - 1 ? '1px solid var(--border)' : 'none' }}
@@ -199,33 +241,30 @@ export default function EmpleadoPedidos() {
                         {/* Cliente */}
                         <td style={{ padding: '14px 16px' }}>
                           <p style={{ fontWeight: 600, fontSize: 13, margin: 0 }}>{p.cliente?.nombre} {p.cliente?.apellido}</p>
-                          <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{p.cliente?.telefono ?? p.cliente?.email ?? '—'}</p>
+                          <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{p.cliente?.telefono ?? '—'}</p>
                         </td>
 
                         {/* Prendas */}
-                        <td style={{ padding: '14px 16px', fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>
+                        <td style={{ padding: '14px 16px', fontWeight: 700, fontSize: 15 }}>
                           {p.totalPrendas}
                         </td>
 
-                        {/* Estado — grupo simple + estado interno */}
+                        {/* Estado */}
                         <td style={{ padding: '14px 16px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            {grupo && grupo.key && (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, fontSize: 12, fontWeight: 700, backgroundColor: grupo.bg, color: grupo.color, width: 'fit-content' }}>
-                                {grupo.label}
-                              </span>
-                            )}
-                            <span style={{ fontSize: 10, color: 'var(--text-hint)' }}>
-                              {ESTADO_PEDIDO_LABEL[p.estado as EstadoPedido]}
-                            </span>
-                          </div>
+                          <EstadoChip estado={p.estado} />
                         </td>
 
-                        {/* Repartidor */}
+                        {/* Repartidor — muestra recolección o entrega según fase */}
                         <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--text-secondary)' }}>
-                          {p.repartidorRecoleccion
-                            ? `${p.repartidorRecoleccion.usuario.nombre} ${p.repartidorRecoleccion.usuario.apellido}`
-                            : <span style={{ color: 'var(--text-hint)' }}>Sin asignar</span>}
+                          {['PENDIENTE','CONFIRMADO','RECOLECTADO','EN_PROCESO'].includes(p.estado) ? (
+                            p.repartidorRecoleccion
+                              ? <span>{p.repartidorRecoleccion.usuario.nombre} {p.repartidorRecoleccion.usuario.apellido}</span>
+                              : <span style={{ color: '#f59e0b', fontSize: 11, fontWeight: 600 }}>Sin asignar (recolección)</span>
+                          ) : (
+                            p.repartidorEntrega
+                              ? <span>{p.repartidorEntrega.usuario.nombre} {p.repartidorEntrega.usuario.apellido}</span>
+                              : <span style={{ color: '#f59e0b', fontSize: 11, fontWeight: 600 }}>Sin asignar (entrega)</span>
+                          )}
                         </td>
 
                         {/* Pago */}
@@ -237,7 +276,8 @@ export default function EmpleadoPedidos() {
 
                         {/* Acciones */}
                         <td style={{ padding: '14px 16px' }}>
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' as const }}>
+
                             {/* Ver detalle */}
                             <button onClick={() => verDetalle(p)} title="Ver detalle"
                               style={{ padding: 6, borderRadius: 8, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
@@ -245,15 +285,16 @@ export default function EmpleadoPedidos() {
                             </button>
 
                             {/* Asignar repartidor */}
-                            {((['PENDIENTE','CONFIRMADO'].includes(p.estado) && !p.repartidorRecoleccionId) ||
-                              (p.estado === 'LISTO' && !p.repartidorEntregaId)) && (
-                              <button onClick={() => abrirAsignar(p)} title="Asignar repartidor"
-                                style={{ padding: 6, borderRadius: 8, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                                <UserCheck style={{ width: 14, height: 14, color: 'var(--text-secondary)' }} />
+                            {puedeAsignar && (
+                              <button onClick={() => abrirAsignar(p)}
+                                title={p.estado === 'LISTO' ? 'Asignar repartidor de entrega' : 'Asignar repartidor de recolección'}
+                                style={{ padding: '6px 10px', borderRadius: 8, border: '1.5px solid #f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', color: '#d97706', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' as const }}>
+                                <UserCheck style={{ width: 13, height: 13 }} />
+                                {p.estado === 'LISTO' ? 'Asignar entrega' : 'Asignar recojo'}
                               </button>
                             )}
 
-                            {/* Botón principal de avance — UN solo botón */}
+                            {/* Acción principal del empleado */}
                             {accion && (
                               <button
                                 disabled={actualizando === p.id}
@@ -261,15 +302,23 @@ export default function EmpleadoPedidos() {
                                 style={{
                                   padding: '6px 12px', borderRadius: 8, border: 'none',
                                   backgroundColor: actualizando === p.id ? `${accion.color}80` : accion.color,
-                                  color: '#fff', fontSize: 12, fontWeight: 600, cursor: actualizando === p.id ? 'not-allowed' : 'pointer',
+                                  color: '#fff', fontSize: 12, fontWeight: 600,
+                                  cursor: actualizando === p.id ? 'not-allowed' : 'pointer',
                                   display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' as const,
                                 }}>
                                 {actualizando === p.id
                                   ? <Spinner className="w-3 h-3 border-white border-t-transparent" />
                                   : <accion.icon style={{ width: 12, height: 12 }} />}
                                 {accion.label}
-                                <ArrowRight style={{ width: 11, height: 11 }} />
                               </button>
+                            )}
+
+                            {/* Info: pedidos en espera de repartidor (ya asignado, esperando acción) */}
+                            {p.estado === 'CONFIRMADO' && p.repartidorRecoleccionId && (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
+                                <Clock style={{ width: 12, height: 12 }} />
+                                Repartidor en camino
+                              </span>
                             )}
                           </div>
                         </td>
@@ -346,21 +395,22 @@ export default function EmpleadoPedidos() {
       {/* ── Modal asignar repartidor ── */}
       <Modal open={showAsignar} onClose={() => setShowAsignar(false)} title="Asignar repartidor" size="sm">
         <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Tipo de asignación (auto-seleccionado pero editable) */}
           <div>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Tipo</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Tipo de asignación</label>
             <select value={tipoAsignacion} onChange={e => setTipoAsignacion(e.target.value as 'recoleccion' | 'entrega')}
               style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: 14, outline: 'none' }}>
-              <option value="recoleccion">Recolección</option>
-              <option value="entrega">Entrega</option>
+              <option value="recoleccion">Recolección (va a buscar al cliente)</option>
+              <option value="entrega">Entrega (lleva al cliente)</option>
             </select>
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Repartidor</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Repartidor disponible</label>
             {repartidores.length === 0
-              ? <p style={{ fontSize: 13, color: 'var(--text-hint)', fontStyle: 'italic' }}>No hay repartidores disponibles</p>
+              ? <p style={{ fontSize: 13, color: 'var(--text-hint)', fontStyle: 'italic' }}>No hay repartidores disponibles en este momento</p>
               : <select value={repartidorSel} onChange={e => setRepartidorSel(e.target.value)}
                   style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: 14, outline: 'none' }}>
-                  <option value="">Seleccionar...</option>
+                  <option value="">Seleccionar repartidor...</option>
                   {repartidores.map(r => <option key={r.id} value={r.id}>{r.usuario?.nombre} {r.usuario?.apellido} — ⭐ {r.calificacionPromedio.toFixed(1)}</option>)}
                 </select>}
           </div>

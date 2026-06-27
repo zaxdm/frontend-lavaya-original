@@ -44,11 +44,11 @@ export const ESTADO_PEDIDO_LABEL: Record<EstadoPedido, string> = {
   CANCELADO:   'Cancelado',
 };
 
-// Etiquetas simplificadas para la vista del empleado (3 grupos)
+// Etiquetas simplificadas para la vista del empleado
 export const ESTADO_PEDIDO_LABEL_SIMPLE: Record<EstadoPedido, string> = {
-  PENDIENTE:   'Recibido',
-  CONFIRMADO:  'Recibido',
-  RECOLECTADO: 'Recibido',
+  PENDIENTE:   'Por recoger',
+  CONFIRMADO:  'Por recoger',
+  RECOLECTADO: 'En lavandería',
   EN_PROCESO:  'Lavando',
   LISTO:       'Listo',
   EN_CAMINO:   'En camino',
@@ -56,11 +56,13 @@ export const ESTADO_PEDIDO_LABEL_SIMPLE: Record<EstadoPedido, string> = {
   CANCELADO:   'Cancelado',
 };
 
-// Grupo simple al que pertenece cada estado
-export const GRUPO_ESTADO: Record<EstadoPedido, 'recibido' | 'lavando' | 'listo' | 'camino' | 'entregado' | 'cancelado'> = {
-  PENDIENTE:   'recibido',
-  CONFIRMADO:  'recibido',
-  RECOLECTADO: 'recibido',
+// Grupo al que pertenece cada estado
+// — empleado ve: por_recoger | en_lavanderia | lavando | listo
+// — repartidor ve: por_recoger | en_lavanderia | para_entregar | camino | entregado
+export const GRUPO_ESTADO: Record<EstadoPedido, string> = {
+  PENDIENTE:   'por_recoger',
+  CONFIRMADO:  'por_recoger',
+  RECOLECTADO: 'en_lavanderia',
   EN_PROCESO:  'lavando',
   LISTO:       'listo',
   EN_CAMINO:   'camino',
