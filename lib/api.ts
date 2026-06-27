@@ -155,6 +155,9 @@ export const adminApi = {
   }) => post<Usuario>('/admin/usuarios', data),
   toggleEstado: (id: string, activo: boolean) =>
     patch<{ mensaje: string }>(`/admin/usuarios/${id}/estado`, { activo }),
+  // Asigna plan Básico a todos los clientes que aún no tienen ninguna membresía
+  asignarBasicoMasivo: () =>
+    post<{ mensaje: string; asignados: number }>('/admin/membresias/asignar-basico-masivo', {}),
 
   // Repartidores
   getRepartidores: (estado?: string) =>
