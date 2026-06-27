@@ -1,390 +1,507 @@
 'use client';
 // app/empleado/clientes/page.tsx
+// Tabla de clientes con panel lateral de membresía (activar/cambiar plan inline)
 
-import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
-  Search, Home, Archive, X, ChevronRight,
-  CheckCircle, Crown,
+  Search, ToggleRight, Crown, X,
+  CheckCircle, Clock, ChevronRight, CreditCard, Gift,
 } from 'lucide-react';
 import { empleadoApi } from '@/lib/api';
-import { ESTADO_PAGO_LABEL, formatCurrency, formatDate } from '@/lib/utils';
-import type { Direccion, Pedido } from '@/types';
+import { formatDate } from '@/lib/utils';
 import PageHeader from '@/components/ui/PageHeader';
+import Badge from '@/components/ui/Badge';
 import Spinner from '@/components/ui/Spinner';
 import toast from 'react-hot-toast';
 
-type ClienteSugerido = {
+// ─── Tipos ────────────────────────────────────────────────────
+type Cliente = {
   id: string;
   nombre: string;
   apellido: string;
   email: string;
-  telefono?: string;
+  telefono?: string | null;
 };
 
-const PLANES: Record<string, { label: string; color: string; bg: string }> = {
-  BASICO:      { label: 'Básico',      color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
-  PREMIUM:     { label: 'Premium',     color: '#2563eb', bg: 'rgba(37,99,235,0.1)'   },
-  EMPRESARIAL: { label: 'Empresarial', color: '#7c3aed', bg: 'rgba(124,58,237,0.1)'  },
+type Membresia = {
+  id: string;
+  tipo: 'BASICO' | 'PREMIUM' | 'EMPRESARIAL';
+  estado: string;
+  fechaInicio: string;
+  fechaFin: string;
+  descuento: number;
+  pedidosGratis: number;
+};
+
+// ─── Planes ───────────────────────────────────────────────────
+const PLANES: {
+  tipo: 'BASICO' | 'PREMIUM' | 'EMPRESARIAL';
+  label: string;
+  precio: string;
+  descuento: number;
+  pedidosGratis: number;
+  color: string;
+  bg: string;
+  beneficios: string[];
+}[] = [
+  {
+    tipo: 'BASICO', label: 'Básico', precio: 'Gratis',
+    descuento: 0, pedidosGratis: 0, color: '#64748b', bg: 'rgba(100,116,139,0.08)',
+    beneficios: ['1 punto por prenda'],
+  },
+  {
+    tipo: 'PREMIUM', label: 'Premium', precio: 'S/149/mes',
+    descuento: 10, pedidosGratis: 3, color: '#7c3aed', bg: 'rgba(124,58,237,0.08)',
+    beneficios: ['x2 puntos por prenda', '10% descuento', '3 pedidos gratis/mes'],
+  },
+  {
+    tipo: 'EMPRESARIAL', label: 'Empresarial', precio: 'S/499/mes',
+    descuento: 20, pedidosGratis: 9999, color: '#0ea5e9', bg: 'rgba(14,165,233,0.08)',
+    beneficios: ['x2 puntos', '20% descuento', 'Pedidos ilimitados', 'Contrato B2B'],
+  },
+];
+
+const ESTADO_COLOR: Record<string, string> = {
+  ACTIVA:    'bg-green-100 text-green-800',
+  EXPIRADA:  'bg-gray-100 text-gray-600',
+  CANCELADA: 'bg-red-100 text-red-700',
 };
 
 const S = {
-  card:    { backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' },
-  input:   { width: '100%', paddingTop: 9, paddingBottom: 9, paddingLeft: 12, paddingRight: 12, borderRadius: 8, border: '1px solid var(--border)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', boxSizing: 'border-box' as const },
-  section: { fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 14 },
+  page:    { backgroundColor: 'var(--bg-base)', flex: 1, display: 'flex', flexDirection: 'column' as const },
+  card:    { backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' },
+  toolbar: { backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border)', padding: '12px 24px', display: 'flex', flexWrap: 'wrap' as const, gap: 12, alignItems: 'center' },
+  thead:   { backgroundColor: 'var(--bg-muted)', borderBottom: '1px solid var(--border)' },
+  th:      { padding: '12px 16px', textAlign: 'left' as const, fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em', whiteSpace: 'nowrap' as const },
+  td:      { padding: '12px 16px', color: 'var(--text-primary)', fontSize: 14 },
+  input:   { paddingLeft: 36, paddingRight: 12, paddingTop: 8, paddingBottom: 8, borderRadius: 8, border: '1px solid var(--border)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', width: '100%' },
 };
 
-export default function EmpleadoClientesPage() {
-  const [busqueda, setBusqueda]       = useState('');
-  const [sugeridos, setSugeridos]     = useState<ClienteSugerido[]>([]);
-  const [clienteSel, setClienteSel]   = useState<ClienteSugerido | null>(null);
-  const [buscando, setBuscando]       = useState(false);
-  const [direcciones, setDirecciones] = useState<Direccion[]>([]);
-  const [historial, setHistorial]     = useState<Pedido[]>([]);
-  const [membresias, setMembresias]   = useState<any[]>([]);
-  const [loadingDir, setLoadingDir]   = useState(false);
-  const [loadingHist, setLoadingHist] = useState(false);
-  const [loadingMem, setLoadingMem]   = useState(false);
+// ─── Panel lateral de membresía ───────────────────────────────
+function MembresiaPanel({
+  cliente,
+  onClose,
+  onChanged,
+}: {
+  cliente: Cliente;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const [membresias, setMembresias] = useState<Membresia[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [activando, setActivando]   = useState<string | null>(null);
 
-  const buscarClientes = useCallback(async (q: string) => {
-    if (q.trim().length < 2) { setSugeridos([]); return; }
-    setBuscando(true);
-    try {
-      const res = await empleadoApi.buscarClientes(q);
-      setSugeridos(res);
-    } catch {
-      toast.error('Error buscando clientes');
-    } finally {
-      setBuscando(false);
-    }
-  }, []);
+  const ahora = new Date();
+  const membresiaActiva = membresias.find(
+    m => m.estado === 'ACTIVA' && new Date(m.fechaFin) > ahora,
+  ) ?? membresias.find(m => m.estado === 'ACTIVA');
 
   useEffect(() => {
-    const t = setTimeout(() => buscarClientes(busqueda), 400);
-    return () => clearTimeout(t);
-  }, [busqueda, buscarClientes]);
+    setLoading(true);
+    empleadoApi
+      .getMembresiasCliente(cliente.id)
+      .then((data: any) => setMembresias(data))
+      .catch(() => toast.error('Error cargando membresías'))
+      .finally(() => setLoading(false));
+  }, [cliente.id]);
 
-  const cargarCliente = async (cliente: ClienteSugerido) => {
-    setClienteSel(cliente);
-    setBusqueda(''); setSugeridos([]);
-    setLoadingDir(true); setLoadingHist(true); setLoadingMem(true);
+  const activarPlan = async (tipo: string) => {
+    if (activando) return;
+    if (membresiaActiva?.tipo === tipo) {
+      toast('Este plan ya está activo', { icon: 'ℹ️' });
+      return;
+    }
+    setActivando(tipo);
     try {
-      const [dirs, pedidos, mems] = await Promise.all([
-        empleadoApi.getDireccionesCliente(cliente.id),
-        empleadoApi.getHistorialCliente(cliente.id),
-        empleadoApi.getMembresiasCliente(cliente.id),
-      ]);
-      setDirecciones(dirs); setHistorial(pedidos); setMembresias(mems);
-    } catch {
-      toast.error('Error cargando datos del cliente');
-      setDirecciones([]); setHistorial([]); setMembresias([]);
+      await empleadoApi.activarMembresia(cliente.id, tipo);
+      toast.success(`Plan ${PLANES.find(p => p.tipo === tipo)?.label} activado`);
+      const data: any = await empleadoApi.getMembresiasCliente(cliente.id);
+      setMembresias(data);
+      onChanged();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al activar plan');
     } finally {
-      setLoadingDir(false); setLoadingHist(false); setLoadingMem(false);
+      setActivando(null);
     }
   };
 
-  const limpiar = () => {
-    setClienteSel(null); setDirecciones([]); setHistorial([]);
-    setBusqueda(''); setSugeridos([]);
-  };
-
-  const notasRecientes = useMemo(() =>
-    historial
-      .flatMap(p => [p.notasCliente, p.notasInternas].filter(Boolean) as string[])
-      .slice(0, 4),
-  [historial]);
-
-  const pedidosRecientes = useMemo(() => historial.slice(0, 8), [historial]);
-
-  const membresiaActiva = useMemo(() => {
-    if (!membresias.length) return null;
-    const ahora = new Date();
-    return (
-      membresias.find(m => m.estado === 'ACTIVA' && new Date(m.fechaFin) > ahora) ??
-      membresias.find(m => m.estado === 'ACTIVA') ??
-      null
-    );
-  }, [membresias]);
-
-  const planActivo = membresiaActiva ? (PLANES[membresiaActiva.tipo] ?? null) : null;
-
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-base)' }}>
-      <PageHeader
-        title="Clientes"
-        subtitle="Busca un cliente para ver su historial, membresía y direcciones"
-      />
+    <div style={{
+      position: 'fixed', top: 0, right: 0, bottom: 0, width: 420,
+      backgroundColor: 'var(--bg-card)', borderLeft: '1px solid var(--border)',
+      boxShadow: '-8px 0 32px rgba(0,0,0,0.12)', zIndex: 50,
+      display: 'flex', flexDirection: 'column', overflow: 'hidden',
+    }}>
+      {/* Header */}
+      <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg,#7c3aed,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+          {cliente.nombre[0]}{cliente.apellido[0]}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {cliente.nombre} {cliente.apellido}
+          </p>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {cliente.email}
+          </p>
+        </div>
+        <button onClick={onClose} style={{ padding: 6, borderRadius: 8, border: 'none', backgroundColor: 'var(--bg-muted)', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex' }}>
+          <X style={{ width: 16, height: 16 }} />
+        </button>
+      </div>
 
-      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, width: '100%', maxWidth: 1040, margin: '0 auto' }}>
-
-        {/* ── Buscador ── */}
-        <div style={S.card}>
-          <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Search style={{ width: 16, height: 16, color: 'var(--text-secondary)' }} />
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                Buscar cliente por nombre, email o teléfono
-              </p>
-            </div>
-
-            <div style={{ position: 'relative' }}>
-              <input
-                value={clienteSel ? `${clienteSel.nombre} ${clienteSel.apellido}` : busqueda}
-                onChange={e => { setBusqueda(e.target.value); if (clienteSel) limpiar(); }}
-                placeholder="Escribe al menos 2 caracteres..."
-                style={{ ...S.input, paddingLeft: 38 }}
-              />
-              {buscando && (
-                <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
-                  <Spinner className="w-4 h-4" />
+      <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner className="w-6 h-6" /></div>
+        ) : (
+          <>
+            {/* Membresía actual */}
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 12px' }}>
+                Membresía actual
+              </h3>
+              {membresiaActiva ? (() => {
+                const plan = PLANES.find(p => p.tipo === membresiaActiva.tipo)!;
+                return (
+                  <div style={{ padding: 16, borderRadius: 12, backgroundColor: plan.bg, border: `1.5px solid ${plan.color}30` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                      <Crown style={{ width: 18, height: 18, color: plan.color }} />
+                      <span style={{ fontWeight: 700, fontSize: 15, color: plan.color }}>{plan.label}</span>
+                      <Badge className={ESTADO_COLOR[membresiaActiva.estado]}>{membresiaActiva.estado}</Badge>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      {membresiaActiva.descuento > 0 && (
+                        <div style={{ padding: '8px 10px', borderRadius: 8, backgroundColor: 'var(--bg-card)', fontSize: 12 }}>
+                          <p style={{ color: 'var(--text-hint)', margin: '0 0 2px', fontSize: 10 }}>DESCUENTO</p>
+                          <p style={{ fontWeight: 700, color: plan.color, margin: 0 }}>{membresiaActiva.descuento}%</p>
+                        </div>
+                      )}
+                      {membresiaActiva.pedidosGratis > 0 && (
+                        <div style={{ padding: '8px 10px', borderRadius: 8, backgroundColor: 'var(--bg-card)', fontSize: 12 }}>
+                          <p style={{ color: 'var(--text-hint)', margin: '0 0 2px', fontSize: 10 }}>PEDIDOS GRATIS</p>
+                          <p style={{ fontWeight: 700, color: plan.color, margin: 0 }}>
+                            {membresiaActiva.pedidosGratis >= 9999 ? '∞' : membresiaActiva.pedidosGratis}
+                          </p>
+                        </div>
+                      )}
+                      <div style={{ padding: '8px 10px', borderRadius: 8, backgroundColor: 'var(--bg-card)', fontSize: 12 }}>
+                        <p style={{ color: 'var(--text-hint)', margin: '0 0 2px', fontSize: 10 }}>INICIO</p>
+                        <p style={{ fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>{formatDate(membresiaActiva.fechaInicio)}</p>
+                      </div>
+                      <div style={{ padding: '8px 10px', borderRadius: 8, backgroundColor: 'var(--bg-card)', fontSize: 12 }}>
+                        <p style={{ color: 'var(--text-hint)', margin: '0 0 2px', fontSize: 10 }}>VENCE</p>
+                        <p style={{ fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>{formatDate(membresiaActiva.fechaFin)}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })() : (
+                <div style={{ padding: 16, borderRadius: 12, backgroundColor: 'var(--bg-muted)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <CreditCard style={{ width: 18, height: 18, color: 'var(--text-hint)' }} />
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>Sin membresía activa</p>
                 </div>
               )}
             </div>
 
-            {/* Dropdown sugeridos */}
-            {!clienteSel && sugeridos.length > 0 && (
-              <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', backgroundColor: 'var(--bg-card)' }}>
-                {sugeridos.map(c => (
-                  <button key={c.id} type="button" onClick={() => cargarCliente(c)}
-                    style={{ width: '100%', padding: '12px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12 }}>
-                    {/* El endpoint de empleado solo devuelve clientes activos */}
-                    <CheckCircle style={{ width: 14, height: 14, color: '#22c55e', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {c.nombre} {c.apellido}
-                      </span>
-                      <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                        {c.email}{c.telefono ? ` · ${c.telefono}` : ''}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+            {/* Cambiar / Activar plan */}
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 12px' }}>
+                {membresiaActiva ? 'Cambiar plan' : 'Activar plan'}
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {PLANES.map(plan => {
+                  const esActivo  = membresiaActiva?.tipo === plan.tipo;
+                  const cargando  = activando === plan.tipo;
+                  return (
+                    <button
+                      key={plan.tipo}
+                      onClick={() => activarPlan(plan.tipo)}
+                      disabled={!!activando}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                        borderRadius: 10, border: `1.5px solid ${esActivo ? plan.color : 'var(--border)'}`,
+                        backgroundColor: esActivo ? plan.bg : 'var(--bg-card)',
+                        cursor: activando ? 'not-allowed' : 'pointer',
+                        textAlign: 'left', width: '100%', transition: 'all 0.15s',
+                        opacity: (activando && !cargando) ? 0.5 : 1,
+                      }}
+                    >
+                      <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: plan.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Crown style={{ width: 16, height: 16, color: plan.color }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontWeight: 700, fontSize: 13, color: plan.color }}>{plan.label}</span>
+                          {esActivo && <CheckCircle style={{ width: 13, height: 13, color: plan.color }} />}
+                        </div>
+                        <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>
+                          {plan.precio}
+                          {plan.descuento > 0 && ` · ${plan.descuento}% desc.`}
+                          {plan.pedidosGratis > 0 && ` · ${plan.pedidosGratis >= 9999 ? '∞' : plan.pedidosGratis} ped. gratis`}
+                        </p>
+                      </div>
+                      {cargando
+                        ? <Spinner className="w-4 h-4" style={{ flexShrink: 0 }} />
+                        : esActivo
+                          ? null
+                          : <Gift style={{ width: 14, height: 14, color: plan.color, flexShrink: 0 }} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Historial */}
+            {membresias.length > 0 && (
+              <div>
+                <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 12px' }}>
+                  Historial
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {membresias.map(m => {
+                    const plan = PLANES.find(p => p.tipo === m.tipo) ?? PLANES[0];
+                    return (
+                      <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, backgroundColor: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
+                        <Crown style={{ width: 14, height: 14, color: plan.color, flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontWeight: 600, fontSize: 12, color: plan.color, margin: 0 }}>{plan.label}</p>
+                          <p style={{ fontSize: 11, color: 'var(--text-hint)', margin: 0 }}>
+                            <Clock style={{ width: 10, height: 10, display: 'inline', verticalAlign: 'middle', marginRight: 3 }} />
+                            {formatDate(m.fechaInicio)} – {formatDate(m.fechaFin)}
+                          </p>
+                        </div>
+                        <Badge className={ESTADO_COLOR[m.estado]} style={{ fontSize: 10 }}>{m.estado}</Badge>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
-            {!clienteSel && busqueda.trim().length >= 2 && sugeridos.length === 0 && !buscando && (
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)' }}>
-                No se encontraron clientes con ese criterio.
+// ─── Página principal ─────────────────────────────────────────
+export default function EmpleadoClientesPage() {
+  const [clientes, setClientes]           = useState<Cliente[]>([]);
+  const [total, setTotal]                 = useState(0);
+  const [totalPages, setTotalPages]       = useState(1);
+  const [page, setPage]                   = useState(1);
+  const [loading, setLoading]             = useState(false);
+  const [buscar, setBuscar]               = useState('');
+  const [clienteDetalle, setClienteDetalle] = useState<Cliente | null>(null);
+  // Mapa clienteId → membresía activa (para mostrar en la tabla sin cargar todo)
+  const [planesCache, setPlanesCache]     = useState<Record<string, string>>({});
+
+  const cargar = useCallback(async (q: string, pg: number) => {
+    setLoading(true);
+    try {
+      // El endpoint de empleado busca clientes; si no hay query cargamos los primeros
+      const res = await empleadoApi.buscarClientes(q.trim().length >= 1 ? q : ' ');
+      // Simular paginación en cliente (el endpoint devuelve máx 50)
+      const POR_PAGINA = 20;
+      const inicio = (pg - 1) * POR_PAGINA;
+      const paginados = res.slice(inicio, inicio + POR_PAGINA);
+      setClientes(paginados);
+      setTotal(res.length);
+      setTotalPages(Math.max(1, Math.ceil(res.length / POR_PAGINA)));
+    } catch {
+      toast.error('Error cargando clientes');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Debounce búsqueda
+  useEffect(() => {
+    const t = setTimeout(() => { setPage(1); cargar(buscar, 1); }, 350);
+    return () => clearTimeout(t);
+  }, [buscar, cargar]);
+
+  useEffect(() => { cargar(buscar, page); }, [page]); // eslint-disable-line
+
+  // Cargar plan activo de cada cliente visible (batch ligero)
+  useEffect(() => {
+    if (!clientes.length) return;
+    clientes.forEach(async c => {
+      if (planesCache[c.id] !== undefined) return; // ya cargado
+      try {
+        const mems: any[] = await empleadoApi.getMembresiasCliente(c.id);
+        const ahora = new Date();
+        const activa = mems.find(m => m.estado === 'ACTIVA' && new Date(m.fechaFin) > ahora)
+          ?? mems.find(m => m.estado === 'ACTIVA');
+        setPlanesCache(prev => ({ ...prev, [c.id]: activa?.tipo ?? '' }));
+      } catch {
+        setPlanesCache(prev => ({ ...prev, [c.id]: '' }));
+      }
+    });
+  }, [clientes]); // eslint-disable-line
+
+  const planDeCliente = (id: string) => {
+    const tipo = planesCache[id];
+    if (!tipo) return null;
+    return PLANES.find(p => p.tipo === tipo) ?? null;
+  };
+
+  return (
+    <div style={S.page}>
+      <PageHeader
+        title="Clientes"
+        subtitle={`${total} clientes registrados`}
+      />
+
+      {/* Buscador */}
+      <div style={S.toolbar}>
+        <div className="relative" style={{ flex: 1, minWidth: 200, maxWidth: 340 }}>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-hint)' }} />
+          <input
+            value={buscar}
+            onChange={e => setBuscar(e.target.value)}
+            placeholder="Buscar por nombre, email o teléfono..."
+            style={S.input}
+          />
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
+          Haz clic en una fila para ver y gestionar la membresía
+        </p>
+      </div>
+
+      {/* Tabla */}
+      <div className="flex-1 p-6">
+        <div style={S.card}>
+          {loading ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 0' }}>
+              <Spinner className="w-8 h-8" />
+            </div>
+          ) : clientes.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', gap: 12 }}>
+              <Search style={{ width: 40, height: 40, color: 'var(--text-hint)' }} />
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}>
+                {buscar ? 'No se encontraron clientes con ese criterio.' : 'Escribe para buscar clientes.'}
               </p>
-            )}
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead style={S.thead}>
+                  <tr>
+                    {['Cliente', 'Teléfono', 'Estado', 'Membresía', ''].map(h => (
+                      <th key={h} style={S.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientes.map(c => {
+                    const plan         = planDeCliente(c.id);
+                    const esSeleccionado = clienteDetalle?.id === c.id;
+                    const planCargado  = planesCache[c.id] !== undefined;
+                    return (
+                      <tr
+                        key={c.id}
+                        style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer', backgroundColor: esSeleccionado ? 'rgba(124,58,237,0.05)' : 'transparent' }}
+                        onClick={() => setClienteDetalle(esSeleccionado ? null : c)}
+                        onMouseEnter={e => { if (!esSeleccionado) e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = esSeleccionado ? 'rgba(124,58,237,0.05)' : 'transparent'; }}
+                      >
+                        {/* Cliente */}
+                        <td style={S.td}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#7c3aed,#a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                              {c.nombre[0]}{c.apellido[0]}
+                            </div>
+                            <div>
+                              <p style={{ fontWeight: 600, margin: 0 }}>{c.nombre} {c.apellido}</p>
+                              <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{c.email}</p>
+                            </div>
+                          </div>
+                        </td>
 
-            {/* Panel cliente seleccionado */}
-            {clienteSel && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16, backgroundColor: 'var(--bg-muted)', borderRadius: 12, border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {clienteSel.nombre} {clienteSel.apellido}
-                      </p>
-                      {/* El endpoint de empleado solo trae activos, siempre mostramos Activo */}
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600,
-                        backgroundColor: 'rgba(34,197,94,0.1)', color: '#16a34a',
-                      }}>
-                        <CheckCircle style={{ width: 11, height: 11 }} /> Activo
-                      </span>
-                    </div>
-                    <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>{clienteSel.email}</p>
-                    <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>{clienteSel.telefono || 'Sin teléfono registrado'}</p>
-                  </div>
-                  <button type="button" onClick={limpiar}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 10, border: 'none', backgroundColor: 'rgba(124,58,237,0.08)', color: 'var(--text-secondary)', cursor: 'pointer', flexShrink: 0 }}>
-                    <X style={{ width: 16, height: 16 }} />
-                  </button>
-                </div>
+                        {/* Teléfono */}
+                        <td style={{ ...S.td, fontSize: 13, color: 'var(--text-secondary)' }}>
+                          {c.telefono || <span style={{ color: 'var(--text-hint)' }}>—</span>}
+                        </td>
 
-                {/* Stats rápidas */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
-                  {[
-                    { label: 'Direcciones',        value: loadingDir  ? '…' : String(direcciones.length) },
-                    { label: 'Pedidos registrados', value: loadingHist ? '…' : String(historial.length) },
-                    {
-                      label: 'Membresía',
-                      value: loadingMem ? '…' : planActivo ? planActivo.label : 'Sin plan',
-                      color: planActivo?.color,
-                    },
-                  ].map(stat => (
-                    <div key={stat.label} style={{ padding: 14, borderRadius: 12, backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-                      <p style={{ margin: '0 0 6px', fontSize: 12, color: 'var(--text-secondary)' }}>{stat.label}</p>
-                      <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: stat.color ?? 'var(--text-primary)' }}>{stat.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+                        {/* Estado — el endpoint de empleados solo devuelve activos */}
+                        <td style={S.td}>
+                          <Badge className="bg-green-100 text-green-800">Activo</Badge>
+                        </td>
+
+                        {/* Membresía */}
+                        <td style={S.td}>
+                          {!planCargado ? (
+                            <Spinner className="w-3 h-3" />
+                          ) : plan ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, backgroundColor: plan.bg, color: plan.color, fontSize: 12, fontWeight: 700 }}>
+                                <Crown style={{ width: 11, height: 11 }} />
+                                {plan.label}
+                              </span>
+                              {plan.descuento > 0 && (
+                                <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{plan.descuento}%</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: 12, color: 'var(--text-hint)' }}>Sin plan</span>
+                          )}
+                        </td>
+
+                        {/* Flecha */}
+                        <td style={S.td}>
+                          <ChevronRight style={{ width: 16, height: 16, color: esSeleccionado ? '#7c3aed' : 'var(--text-hint)', transform: esSeleccionado ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {/* ── Detalle ── */}
-        {clienteSel ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20 }}>
-
-            {/* Columna izquierda */}
-            <div style={S.card}>
-              <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 22 }}>
-
-                {/* Historial de pedidos */}
-                <div>
-                  <p style={S.section}>Historial de pedidos</p>
-                  {loadingHist ? (
-                    <div style={{ padding: 30, display: 'flex', justifyContent: 'center' }}><Spinner /></div>
-                  ) : historial.length === 0 ? (
-                    <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)' }}>
-                      Este cliente aún no tiene pedidos registrados.
-                    </p>
-                  ) : (
-                    <div style={{ display: 'grid', gap: 12 }}>
-                      {pedidosRecientes.map(pedido => (
-                        <div key={pedido.id} style={{ padding: 16, borderRadius: 12, backgroundColor: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-                            <div>
-                              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>#{pedido.id.slice(0, 8)}</p>
-                              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-secondary)' }}>
-                                Recolección: {formatDate(pedido.fechaRecoleccion)}
-                              </p>
-                            </div>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', backgroundColor: 'rgba(124,58,237,0.1)', padding: '5px 10px', borderRadius: 999 }}>
-                              {ESTADO_PAGO_LABEL[pedido.pago?.estado ?? 'PENDIENTE']}
-                            </span>
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
-                            <div>
-                              <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>{pedido.totalPrendas}</p>
-                              <p style={{ margin: '4px 0 0' }}>Prendas</p>
-                            </div>
-                            <div>
-                              <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>{formatCurrency(pedido.pago?.monto ?? 0)}</p>
-                              <p style={{ margin: '4px 0 0' }}>Monto</p>
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, gap: 10 }}>
-                            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{pedido.estado ?? 'Desconocido'}</span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-                              Ver detalle <ChevronRight style={{ width: 13, height: 13 }} />
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Membresía */}
-                <div>
-                  <p style={S.section}>Membresía</p>
-                  {loadingMem ? (
-                    <div style={{ padding: 18, display: 'flex', justifyContent: 'center' }}><Spinner /></div>
-                  ) : membresiaActiva ? (
-                    <>
-                      <div style={{ padding: 14, borderRadius: 12, backgroundColor: planActivo?.bg ?? 'var(--bg-muted)', border: `1px solid ${planActivo?.color ?? 'var(--border)'}30`, marginBottom: 10 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                          <Crown style={{ width: 16, height: 16, color: planActivo?.color ?? 'var(--text-primary)' }} />
-                          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: planActivo?.color ?? 'var(--text-primary)' }}>
-                            {planActivo?.label ?? membresiaActiva.tipo}
-                          </p>
-                          <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 999, backgroundColor: 'rgba(34,197,94,0.12)', color: '#16a34a' }}>
-                            ACTIVA
-                          </span>
-                        </div>
-                        <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>
-                          {membresiaActiva.descuento > 0 && `${membresiaActiva.descuento}% descuento · `}
-                          Válida hasta: {new Date(membresiaActiva.fechaFin).toLocaleDateString('es-PE')}
-                        </p>
-                      </div>
-                      <Link href={`/empleado/membresias?clienteId=${clienteSel.id}&clienteNombre=${encodeURIComponent(`${clienteSel.nombre} ${clienteSel.apellido}`)}`}>
-                        <button style={{ width: '100%', padding: '10px 16px', borderRadius: 10, border: '1.5px solid #7c3aed', backgroundColor: 'rgba(124,58,237,0.08)', color: '#7c3aed', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                          Gestionar membresía →
-                        </button>
-                      </Link>
-                    </>
-                  ) : (
-                    <>
-                      <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--text-secondary)' }}>
-                        Sin membresía activa.
-                      </p>
-                      <Link href={`/empleado/membresias?clienteId=${clienteSel.id}&clienteNombre=${encodeURIComponent(`${clienteSel.nombre} ${clienteSel.apellido}`)}`}>
-                        <button style={{ width: '100%', padding: '10px 16px', borderRadius: 10, border: '1.5px solid #7c3aed', backgroundColor: 'rgba(124,58,237,0.08)', color: '#7c3aed', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                          Asignar membresía →
-                        </button>
-                      </Link>
-                    </>
-                  )}
-                </div>
-
-                {/* Notas / preferencias */}
-                <div>
-                  <p style={S.section}>Notas / preferencias</p>
-                  {loadingHist ? (
-                    <div style={{ padding: 18, display: 'flex', justifyContent: 'center' }}><Spinner /></div>
-                  ) : notasRecientes.length === 0 ? (
-                    <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)' }}>
-                      No hay notas registradas. Aparecen aquí cuando un pedido contiene notas del cliente o internas.
-                    </p>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {notasRecientes.map((nota, i) => (
-                        <div key={i} style={{ padding: 14, borderRadius: 12, backgroundColor: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
-                          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-primary)' }}>{nota}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Columna derecha: direcciones */}
-            <div style={S.card}>
-              <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 18 }}>
-                <p style={S.section}>Direcciones del cliente</p>
-                {loadingDir ? (
-                  <div style={{ padding: 30, display: 'flex', justifyContent: 'center' }}><Spinner /></div>
-                ) : direcciones.length === 0 ? (
-                  <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)' }}>
-                    No hay direcciones guardadas para este cliente.
-                  </p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {direcciones.map(d => (
-                      <div key={d.id} style={{ padding: 14, borderRadius: 12, backgroundColor: 'var(--bg-muted)', border: '1px solid var(--border)', display: 'grid', gap: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <Home style={{ width: 16, height: 16, color: '#7c3aed' }} />
-                          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                            {d.calle} {d.numero}
-                          </p>
-                        </div>
-                        <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>
-                          {d.colonia}, {d.ciudad}{d.estado ? `, ${d.estado}` : ''}
-                        </p>
-                        <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>
-                          {d.codigoPostal || 'Sin código postal'}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* Estado vacío */
-          <div style={S.card}>
-            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Archive style={{ width: 18, height: 18, color: 'var(--text-secondary)' }} />
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Busca un cliente para ver su información
-                </p>
-              </div>
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                Aquí puedes consultar el historial de pedidos, membresía activa, notas y direcciones de cualquier cliente.
-              </p>
+        {/* Paginación */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              Página {page} de {totalPages} · {total} clientes
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
+                style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: 13, cursor: page <= 1 ? 'not-allowed' : 'pointer', opacity: page <= 1 ? 0.4 : 1 }}>
+                Anterior
+              </button>
+              <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
+                style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: 13, cursor: page >= totalPages ? 'not-allowed' : 'pointer', opacity: page >= totalPages ? 0.4 : 1 }}>
+                Siguiente
+              </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Panel lateral de membresía */}
+      {clienteDetalle && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.25)', zIndex: 40 }}
+            onClick={() => setClienteDetalle(null)}
+          />
+          <MembresiaPanel
+            cliente={clienteDetalle}
+            onClose={() => setClienteDetalle(null)}
+            onChanged={() => {
+              // Limpiar cache del cliente para que recargue en la tabla
+              setPlanesCache(prev => {
+                const next = { ...prev };
+                delete next[clienteDetalle.id];
+                return next;
+              });
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

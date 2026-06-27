@@ -2,7 +2,7 @@
 // components/layout/EmpleadoSidebar.tsx
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ShoppingBag, LogOut, Moon, Sun, Package, UserCheck, PlusCircle, User, Crown } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, LogOut, Moon, Sun, Package, UserCheck, PlusCircle, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
@@ -13,8 +13,7 @@ const NAV = [
   { href: '/empleado/dashboard',    label: 'Dashboard',       icon: LayoutDashboard },
   { href: '/empleado/nuevo-pedido', label: 'Nuevo pedido',    icon: PlusCircle,     highlight: true },
   { href: '/empleado/pedidos',      label: 'Pedidos activos', icon: ShoppingBag     },
-  { href: '/empleado/clientes',     label: 'Clientes',         icon: UserCheck       },
-  { href: '/empleado/membresias',   label: 'Membresías',      icon: Crown           },
+  { href: '/empleado/clientes',     label: 'Clientes',        icon: UserCheck       },
   { href: '/empleado/catalogo',     label: 'Catálogo',        icon: Package         },
   { href: '/empleado/cuenta',       label: 'Mi cuenta',       icon: User            },
 ];
