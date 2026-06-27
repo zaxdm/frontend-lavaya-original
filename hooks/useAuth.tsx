@@ -17,11 +17,9 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// Devuelve el login correcto según rol
-function loginRouteForRole(rol: Rol): string {
-  if (rol === 'ADMIN')      return '/login/admin';
-  if (rol === 'EMPLEADO')   return '/login/empleado';
-  return '/login/cliente';
+// Devuelve el login correcto según rol — ruta unificada /ingresar para todos
+function loginRouteForRole(_rol?: Rol): string {
+  return '/ingresar';
 }
 
 // Devuelve el home correcto según rol
@@ -72,15 +70,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     const refresh = tokenStorage.getRefresh();
-    const currentRole = user?.rol;
     if (refresh) {
       try { await authApi.logout(refresh); } catch { /* ignorar */ }
     }
     tokenStorage.clear();
     setUser(null);
-    // Redirigir al login del portal que estaba usando
-    router.push(currentRole ? loginRouteForRole(currentRole) : '/admin/login');
-  }, [router, user]);
+    // Redirigir al login unificado
+    router.push('/ingresar');
+  }, [router]);
 
   const updateUser = useCallback((u: AuthUser) => setUser(u), []);
 

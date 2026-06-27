@@ -76,7 +76,7 @@ async function apiFetch<T>(
       } else {
         // Refresh falló: redirigir al login
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/ingresar';
         }
         throw new Error('Sesión expirada');
       }

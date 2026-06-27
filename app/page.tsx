@@ -13,7 +13,7 @@ export default function RootPage() {
     if (user) {
       router.replace(homeRouteForRole(user.rol));
     } else {
-      router.replace('/login/cliente');
+      router.replace('/ingresar');
     }
   }, [user, loading, router]);
 

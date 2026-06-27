@@ -5,7 +5,7 @@ import EmpleadoSidebar from '@/components/layout/EmpleadoSidebar';
 
 export default function EmpleadoLayout({ children }: { children: React.ReactNode }) {
   return (
-    <RouteGuard allowedRoles={['EMPLEADO']} loginHref="/login/empleado">
+    <RouteGuard allowedRoles={['EMPLEADO']} loginHref="/ingresar">
       <AppShell title="LavaYa Empleado" sidebar={<EmpleadoSidebar />}>
         {children}
       </AppShell>
