@@ -44,7 +44,46 @@ export const ESTADO_PEDIDO_LABEL: Record<EstadoPedido, string> = {
   CANCELADO:   'Cancelado',
 };
 
-// Etiquetas simplificadas para la vista del empleado
+// ── 4 estados que VE EL CLIENTE (simplificados) ───────────────
+//   Recibido    = PENDIENTE + CONFIRMADO + RECOLECTADO
+//   Lavando     = EN_PROCESO
+//   En camino   = LISTO + EN_CAMINO
+//   Entregado   = ENTREGADO
+export const ESTADO_PEDIDO_LABEL_CLIENTE: Record<EstadoPedido, string> = {
+  PENDIENTE:   'Recibido',
+  CONFIRMADO:  'Recibido',
+  RECOLECTADO: 'Recibido',
+  EN_PROCESO:  'Lavando',
+  LISTO:       'En camino',
+  EN_CAMINO:   'En camino',
+  ENTREGADO:   'Entregado',
+  CANCELADO:   'Cancelado',
+};
+
+export const ESTADO_PEDIDO_COLOR_CLIENTE: Record<EstadoPedido, string> = {
+  PENDIENTE:   'bg-blue-100 text-blue-800',
+  CONFIRMADO:  'bg-blue-100 text-blue-800',
+  RECOLECTADO: 'bg-blue-100 text-blue-800',
+  EN_PROCESO:  'bg-purple-100 text-purple-800',
+  LISTO:       'bg-orange-100 text-orange-800',
+  EN_CAMINO:   'bg-orange-100 text-orange-800',
+  ENTREGADO:   'bg-green-100 text-green-800',
+  CANCELADO:   'bg-red-100 text-red-800',
+};
+
+// Descripción amigable para el cliente (lo que le importa saber)
+export const ESTADO_PEDIDO_DESC_CLIENTE: Record<EstadoPedido, string> = {
+  PENDIENTE:   'Recibimos tu pedido y estamos coordinando la recolección',
+  CONFIRMADO:  'Un repartidor va a recoger tus prendas',
+  RECOLECTADO: 'Tus prendas están en camino a la lavandería',
+  EN_PROCESO:  'Tus prendas se están lavando',
+  LISTO:       'Tus prendas están listas y en camino hacia ti',
+  EN_CAMINO:   'Tus prendas están en camino hacia ti',
+  ENTREGADO:   '¡Tus prendas fueron entregadas!',
+  CANCELADO:   'El pedido fue cancelado',
+};
+
+// Etiquetas del empleado
 export const ESTADO_PEDIDO_LABEL_SIMPLE: Record<EstadoPedido, string> = {
   PENDIENTE:   'Por recoger',
   CONFIRMADO:  'Por recoger',
@@ -56,9 +95,7 @@ export const ESTADO_PEDIDO_LABEL_SIMPLE: Record<EstadoPedido, string> = {
   CANCELADO:   'Cancelado',
 };
 
-// Grupo al que pertenece cada estado
-// — empleado ve: por_recoger | en_lavanderia | lavando | listo
-// — repartidor ve: por_recoger | en_lavanderia | para_entregar | camino | entregado
+// Grupo interno para filtros
 export const GRUPO_ESTADO: Record<EstadoPedido, string> = {
   PENDIENTE:   'por_recoger',
   CONFIRMADO:  'por_recoger',
