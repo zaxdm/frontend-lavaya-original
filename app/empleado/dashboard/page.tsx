@@ -56,6 +56,8 @@ export default function EmpleadoDashboard() {
   const [showAsignar, setShowAsignar] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const [showAllPedidos, setShowAllPedidos] = useState(false);
+
   const [ventas,     setVentas]     = useState<VentaDia[]>([]);
   const [loadingVen, setLoadingVen] = useState(true);
   const [periodo,    setPeriodo]    = useState(14);
@@ -243,9 +245,9 @@ export default function EmpleadoDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {pedidos.map((p: any, i: number) => (
+                    {(showAllPedidos ? pedidos : pedidos.slice(0, 5)).map((p: any, i: number) => (
                       <tr key={p.id}
-                        style={{ borderBottom: i < pedidos.length - 1 ? '1px solid var(--border)' : 'none' }}
+                        style={{ borderBottom: i < (showAllPedidos ? pedidos.length : Math.min(pedidos.length, 5)) - 1 ? '1px solid var(--border)' : 'none' }}
                         onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)')}
                         onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                       >
@@ -296,6 +298,25 @@ export default function EmpleadoDashboard() {
                     ))}
                   </tbody>
                 </table>
+                {pedidos.length > 5 && (
+                  <div style={{ borderTop: '1px solid var(--border)', padding: '10px 16px', display: 'flex', justifyContent: 'center' }}>
+                    <button
+                      onClick={() => setShowAllPedidos(prev => !prev)}
+                      style={{
+                        padding: '7px 20px', borderRadius: 8, border: '1px solid var(--border)',
+                        backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)',
+                        fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--bg-card-hover)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--bg-card)'; }}
+                    >
+                      {showAllPedidos
+                        ? `▲ Mostrar menos`
+                        : `▼ Ver ${pedidos.length - 5} pedido${pedidos.length - 5 !== 1 ? 's' : ''} más`}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
