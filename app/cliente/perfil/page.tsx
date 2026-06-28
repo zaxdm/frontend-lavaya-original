@@ -389,7 +389,9 @@ export default function ClientePerfil() {
     e.preventDefault();
     setSavingPerfil(true);
     try {
-      const r = await fetch(`${base}/clientes/perfil`, { method: 'PATCH', headers, body: JSON.stringify({ nombre: perfil.nombre, apellido: perfil.apellido, telefono: perfil.telefono || null }) });
+      const body: Record<string, string> = { nombre: perfil.nombre, apellido: perfil.apellido };
+      if (perfil.telefono.trim()) body.telefono = perfil.telefono.trim();
+      const r = await fetch(`${base}/clientes/perfil`, { method: 'PATCH', headers, body: JSON.stringify(body) });
       if (!r.ok) throw new Error();
       updateUser(await r.json());
       toast.success('Perfil actualizado');
