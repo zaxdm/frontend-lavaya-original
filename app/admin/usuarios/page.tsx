@@ -329,21 +329,6 @@ export default function UsuariosPage() {
       <PageHeader title="Gestión de Usuarios" subtitle={`${total} usuarios registrados`}
         action={
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={async () => {
-                try {
-                  const res = await adminApi.asignarBasicoMasivo();
-                  toast.success(res.mensaje);
-                  load();
-                } catch (err: unknown) {
-                  toast.error(err instanceof Error ? err.message : 'Error');
-                }
-              }}
-              title="Asigna plan Básico a todos los clientes que aún no tienen ninguna membresía"
-              className="flex items-center gap-2 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors"
-            >
-              <Crown className="w-4 h-4" /> Asignar Básico a sin plan
-            </button>
             <button onClick={() => setShowCrear(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
               <UserPlus className="w-4 h-4" />Nuevo usuario
             </button>
