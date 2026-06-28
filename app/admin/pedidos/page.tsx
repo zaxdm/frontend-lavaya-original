@@ -268,6 +268,27 @@ export default function PedidosPage() {
                 </div>
               </div>
             )}
+
+            {/* Foto de entrega */}
+            {(() => {
+              const fotoEntrega = (() => {
+                try { return pedidoDetalle.notasInternas ? JSON.parse(pedidoDetalle.notasInternas as string)?.fotoEntrega : null; }
+                catch { return null; }
+              })();
+              if (!fotoEntrega) return null;
+              return (
+                <div>
+                  <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }} />
+                    Foto de entrega
+                  </h3>
+                  <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(34,197,94,0.3)' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={fotoEntrega} alt="Foto de entrega" style={{ width: '100%', maxHeight: 300, objectFit: 'cover', display: 'block' }} />
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </Modal>

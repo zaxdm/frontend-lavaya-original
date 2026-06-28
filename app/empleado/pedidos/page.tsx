@@ -388,6 +388,25 @@ export default function EmpleadoPedidos() {
                 </div>
               </div>
             )}
+            {/* Foto de entrega */}
+            {(() => {
+              const foto = (() => {
+                try { return pedidoDetalle.notasInternas ? JSON.parse(pedidoDetalle.notasInternas as string)?.fotoEntrega : null; }
+                catch { return null; }
+              })();
+              if (!foto) return null;
+              return (
+                <div>
+                  <h3 style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }} /> Foto de entrega
+                  </h3>
+                  <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(34,197,94,0.3)' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={foto} alt="Foto de entrega" style={{ width: '100%', maxHeight: 280, objectFit: 'cover', display: 'block' }} />
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </Modal>
