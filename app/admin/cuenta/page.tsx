@@ -79,6 +79,8 @@ export default function CuentaPage() {
   const [savingPass, setSavingPass] = useState(false);
   const [passErrors, setPassErrors] = useState<string[]>([]);
 
+
+  
   useEffect(() => {
     if (user) {
       setPerfil({ nombre: user.nombre, apellido: user.apellido, telefono: user.telefono ?? '' });
