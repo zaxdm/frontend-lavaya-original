@@ -389,14 +389,16 @@ export default function ClientePerfil() {
     e.preventDefault();
     setSavingPerfil(true);
     try {
-      const body: Record<string, string> = { nombre: perfil.nombre, apellido: perfil.apellido };
-      if (perfil.telefono.trim()) body.telefono = perfil.telefono.trim();
-      const r = await fetch(`${base}/clientes/perfil`, { method: 'PATCH', headers, body: JSON.stringify(body) });
-      if (!r.ok) throw new Error();
-      updateUser(await r.json());
+      const data: Record<string, string> = { nombre: perfil.nombre, apellido: perfil.apellido };
+      if (perfil.telefono.trim()) data.telefono = perfil.telefono.trim();
+      const updated = await clienteApi.actualizarPerfil(data);
+      updateUser(updated);
       toast.success('Perfil actualizado');
-    } catch { toast.error('Error al guardar'); }
-    finally { setSavingPerfil(false); }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al guardar');
+    } finally {
+      setSavingPerfil(false);
+    }
   };
 
   const cambiarPass = async (e: React.FormEvent) => {
