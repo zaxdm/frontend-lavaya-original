@@ -9,7 +9,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   Package, RefreshCw, Eye, UserCheck,
-  WashingMachine, CheckCircle2, Truck, Clock,
+  WashingMachine, CheckCircle2, Truck, Clock, Search, Filter,
 } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import Spinner from '@/components/ui/Spinner';
@@ -25,6 +25,14 @@ import {
 } from '@/lib/utils';
 import type { Pedido, EstadoPedido, Repartidor, EstadoPago } from '@/types';
 import toast from 'react-hot-toast';
+
+const ESTADOS: EstadoPedido[] = ['PENDIENTE','CONFIRMADO','RECOLECTADO','EN_PROCESO','LISTO','EN_CAMINO','ENTREGADO','CANCELADO'];
+
+// Estilos del toolbar (igual que admin)
+const S = {
+  input:  { paddingLeft: 36, paddingRight: 12, paddingTop: 8, paddingBottom: 8, borderRadius: 8, border: '1px solid var(--border)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: 14, outline: 'none', width: '100%' },
+  select: { padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: 14, outline: 'none' },
+};
 
 // ─── Grupos del empleado ──────────────────────────────────────
 const GRUPOS = [
@@ -79,6 +87,8 @@ export default function EmpleadoPedidos() {
   const [pedidos, setPedidos]             = useState<any[]>([]);
   const [loading, setLoading]             = useState(true);
   const [filtroGrupo, setFiltroGrupo]     = useState('');
+  const [filtroEstado, setFiltroEstado]   = useState('');
+  const [buscar, setBuscar]               = useState('');
   const [actualizando, setActualizando]   = useState<string | null>(null);
 
   const [pedidoDetalle, setPedidoDetalle] = useState<Pedido | null>(null);
@@ -142,10 +152,20 @@ export default function EmpleadoPedidos() {
     } finally { setSaving(false); }
   };
 
-  // Filtrar por grupo
-  const pedidosFiltrados = filtroGrupo
-    ? pedidos.filter(p => GRUPO_ESTADO[p.estado as EstadoPedido] === filtroGrupo)
-    : pedidos;
+  // Filtrar: grupo + estado exacto + búsqueda por texto
+  const pedidosFiltrados = pedidos.filter(p => {
+    const q = buscar.trim().toLowerCase();
+    const matchBuscar = !q
+      || p.id.toLowerCase().includes(q)
+      || `${p.cliente?.nombre ?? ''} ${p.cliente?.apellido ?? ''}`.toLowerCase().includes(q)
+      || (p.cliente?.email  ?? '').toLowerCase().includes(q)
+      || (p.cliente?.telefono ?? '').toLowerCase().includes(q);
+
+    const matchGrupo  = !filtroGrupo  || GRUPO_ESTADO[p.estado as EstadoPedido] === filtroGrupo;
+    const matchEstado = !filtroEstado || p.estado === filtroEstado;
+
+    return matchBuscar && matchGrupo && matchEstado;
+  });
 
   // Conteos por grupo
   const conteos: Record<string, number> = { '': pedidos.length };
@@ -167,13 +187,50 @@ export default function EmpleadoPedidos() {
 
       <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
+        {/* ── Barra de búsqueda + filtro de estado ── */}
+        <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 16px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+          {/* Buscador */}
+          <div className="relative" style={{ flex: 1, minWidth: 200, maxWidth: 340 }}>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-hint)' }} />
+            <input
+              value={buscar}
+              onChange={e => setBuscar(e.target.value)}
+              placeholder="Buscar por ID, nombre, email, teléfono…"
+              style={S.input}
+            />
+          </div>
+          {/* Filtro por estado exacto */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Filter style={{ width: 15, height: 15, color: 'var(--text-hint)' }} />
+            <select
+              value={filtroEstado}
+              onChange={e => { setFiltroEstado(e.target.value); setFiltroGrupo(''); }}
+              style={S.select}
+            >
+              <option value="">Todos los estados</option>
+              {ESTADOS.map(e => (
+                <option key={e} value={e}>{ESTADO_PEDIDO_LABEL[e]}</option>
+              ))}
+            </select>
+          </div>
+          {/* Limpiar filtros */}
+          {(buscar || filtroEstado) && (
+            <button
+              onClick={() => { setBuscar(''); setFiltroEstado(''); }}
+              style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: 12, cursor: 'pointer' }}
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+
         {/* ── Tabs de flujo ── */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
           {GRUPOS.map(g => {
-            const activo = filtroGrupo === g.key;
+            const activo = filtroGrupo === g.key && !filtroEstado;
             const n = conteos[g.key] ?? 0;
             return (
-              <button key={g.key} onClick={() => setFiltroGrupo(g.key)}
+              <button key={g.key} onClick={() => { setFiltroGrupo(g.key); setFiltroEstado(''); }}
                 style={{
                   padding: '8px 16px', borderRadius: 999, fontSize: 13, fontWeight: activo ? 700 : 500,
                   border: `1.5px solid ${activo ? g.color : 'var(--border)'}`,
@@ -204,14 +261,16 @@ export default function EmpleadoPedidos() {
           ) : pedidosFiltrados.length === 0 ? (
             <div style={{ padding: '64px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
               <Package style={{ width: 40, height: 40, color: 'var(--text-hint)' }} />
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}>Sin pedidos en este grupo</p>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}>
+                {buscar ? `Sin resultados para "${buscar}"` : 'Sin pedidos en este grupo'}
+              </p>
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ backgroundColor: 'var(--bg-muted)', borderBottom: '1px solid var(--border)' }}>
-                    {['ID', 'Cliente', 'Prendas', 'Estado', 'Repartidor', 'Pago', 'Acciones'].map(h => (
+                    {['ID', 'Cliente', 'Prendas', 'Estado', 'Repartidor', 'Pago', 'Fecha', 'Acciones'].map(h => (
                       <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -219,10 +278,6 @@ export default function EmpleadoPedidos() {
                 <tbody>
                   {pedidosFiltrados.map((p: any, i: number) => {
                     const accion = getAccion(p.estado);
-                    const grupo  = GRUPO_ESTADO[p.estado as EstadoPedido];
-                    // Mostrar botón de asignar cuando:
-                    // - PENDIENTE/CONFIRMADO sin repartidor de recolección
-                    // - LISTO sin repartidor de entrega
                     const puedeAsignar =
                       (['PENDIENTE','CONFIRMADO'].includes(p.estado) && !p.repartidorRecoleccionId) ||
                       (p.estado === 'LISTO' && !p.repartidorEntregaId);
@@ -241,12 +296,13 @@ export default function EmpleadoPedidos() {
                         {/* Cliente */}
                         <td style={{ padding: '14px 16px' }}>
                           <p style={{ fontWeight: 600, fontSize: 13, margin: 0 }}>{p.cliente?.nombre} {p.cliente?.apellido}</p>
-                          <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{p.cliente?.telefono ?? '—'}</p>
+                          <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0 }}>{p.cliente?.email ?? p.cliente?.telefono ?? '—'}</p>
                         </td>
 
                         {/* Prendas */}
                         <td style={{ padding: '14px 16px', fontWeight: 700, fontSize: 15 }}>
                           {p.totalPrendas}
+                          {p.tienePrendasExtra && <span style={{ marginLeft: 6, fontSize: 10, backgroundColor: 'rgba(249,115,22,0.1)', color: '#ea580c', padding: '2px 6px', borderRadius: 999, fontWeight: 600 }}>+cargo</span>}
                         </td>
 
                         {/* Estado */}
@@ -254,12 +310,12 @@ export default function EmpleadoPedidos() {
                           <EstadoChip estado={p.estado} />
                         </td>
 
-                        {/* Repartidor — muestra recolección o entrega según fase */}
+                        {/* Repartidor */}
                         <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--text-secondary)' }}>
                           {['PENDIENTE','CONFIRMADO','RECOLECTADO','EN_PROCESO'].includes(p.estado) ? (
                             p.repartidorRecoleccion
                               ? <span>{p.repartidorRecoleccion.usuario.nombre} {p.repartidorRecoleccion.usuario.apellido}</span>
-                              : <span style={{ color: '#f59e0b', fontSize: 11, fontWeight: 600 }}>Sin asignar (recolección)</span>
+                              : <span style={{ color: '#f59e0b', fontSize: 11, fontWeight: 600 }}>Sin asignar (recojo)</span>
                           ) : (
                             p.repartidorEntrega
                               ? <span>{p.repartidorEntrega.usuario.nombre} {p.repartidorEntrega.usuario.apellido}</span>
@@ -269,9 +325,17 @@ export default function EmpleadoPedidos() {
 
                         {/* Pago */}
                         <td style={{ padding: '14px 16px', fontSize: 12 }}>
-                          {p.pago
-                            ? <span style={{ color: ESTADO_PAGO_COLOR[p.pago.estado as EstadoPago], fontWeight: 600 }}>{ESTADO_PAGO_LABEL[p.pago.estado as EstadoPago]}</span>
-                            : <span style={{ color: 'var(--text-hint)' }}>—</span>}
+                          {p.pago ? (
+                            <div>
+                              <span style={{ color: ESTADO_PAGO_COLOR[p.pago.estado as EstadoPago], fontWeight: 600 }}>{ESTADO_PAGO_LABEL[p.pago.estado as EstadoPago]}</span>
+                              <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '2px 0 0' }}>{formatCurrency(p.pago.monto)} · {p.pago.metodoPago}</p>
+                            </div>
+                          ) : <span style={{ color: 'var(--text-hint)' }}>—</span>}
+                        </td>
+
+                        {/* Fecha */}
+                        <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                          {formatDate(p.createdAt)}
                         </td>
 
                         {/* Acciones */}
@@ -313,7 +377,7 @@ export default function EmpleadoPedidos() {
                               </button>
                             )}
 
-                            {/* Info: pedidos en espera de repartidor (ya asignado, esperando acción) */}
+                            {/* Info: repartidor asignado, esperando recolección */}
                             {p.estado === 'CONFIRMADO' && p.repartidorRecoleccionId && (
                               <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
                                 <Clock style={{ width: 12, height: 12 }} />
