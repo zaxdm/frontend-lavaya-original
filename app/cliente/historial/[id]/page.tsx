@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, ShoppingBag, MapPin, Truck, CreditCard,
-  CheckCircle2, Circle, Star, MessageCircle,
+  CheckCircle2, Circle, Star, MessageCircle, XCircle,
 } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import Spinner from '@/components/ui/Spinner';
@@ -37,6 +37,9 @@ export default function HistorialDetallePage() {
   const [pedido, setPedido] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancelando, setCancelando] = useState(false);
+  const [showCancelarModal, setShowCancelarModal] = useState(false);
+  const [motivoCancelacion, setMotivoCancelacion] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -78,6 +81,21 @@ export default function HistorialDetallePage() {
 
   if (!pedido) return null;
 
+  const handleCancelar = async () => {
+    setCancelando(true);
+    try {
+      const { pedido: actualizado } = await pedidosApi.cancelar(id, motivoCancelacion.trim() || undefined);
+      setPedido(actualizado);
+      setShowCancelarModal(false);
+      setMotivoCancelacion('');
+      toast.success('Pedido cancelado');
+    } catch (err: any) {
+      toast.error(err.message || 'No se pudo cancelar el pedido');
+    } finally {
+      setCancelando(false);
+    }
+  };
+
   const color = ESTADO_COLOR[pedido.estado] ?? '#64748b';
   const label = ESTADO_LABEL[pedido.estado] ?? pedido.estado;
   const cancelado = pedido.estado === 'CANCELADO';
@@ -87,6 +105,13 @@ export default function HistorialDetallePage() {
   const direccion = pedido.direccion ?? pedido.direccionEntrega ?? null;
   const repartidor = pedido.repartidor ?? pedido.repartidorEntrega ?? null;
   const pago = pedido.pago ?? null;
+
+  // Foto de entrega guardada en notasInternas (JSON blob)
+  const fotoEntrega: string | null = (() => {
+    if (!pedido.notasInternas) return null;
+    try { return JSON.parse(pedido.notasInternas)?.fotoEntrega ?? null; }
+    catch { return null; }
+  })();
 
   return (
     <div style={{ flex: 1, backgroundColor: 'var(--bg-base)' }}>
@@ -121,6 +146,13 @@ export default function HistorialDetallePage() {
           </div>
           {pedido.totalPrendas != null && (
             <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{pedido.totalPrendas} prendas en este pedido</p>
+          )}
+          {pedido.estado === 'PENDIENTE' && (
+            <button
+              onClick={() => setShowCancelarModal(true)}
+              style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, border: '1.5px solid rgba(239,68,68,0.4)', backgroundColor: 'rgba(239,68,68,0.06)', color: '#ef4444', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              <XCircle style={{ width: 14, height: 14 }} /> Cancelar pedido
+            </button>
           )}
         </div>
 
@@ -253,6 +285,22 @@ export default function HistorialDetallePage() {
           </div>
         )}
 
+        {/* ─── Foto de entrega ─── */}
+        {fotoEntrega && (
+          <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+            <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CheckCircle2 style={{ width: 16, height: 16, color: '#22c55e' }} />
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Foto de entrega</p>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={fotoEntrega}
+              alt="Foto de entrega del pedido"
+              style={{ width: '100%', maxHeight: 320, objectFit: 'cover', display: 'block' }}
+            />
+          </div>
+        )}
+
         {/* ─── Calificación (si ya fue entregado) ─── */}
         {pedido.estado === 'ENTREGADO' && !pedido.calificacion && (
           <div style={{ backgroundColor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 14, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -268,6 +316,47 @@ export default function HistorialDetallePage() {
           </div>
         )}
       </div>
+
+      {/* ─── Modal confirmar cancelación ─── */}
+      {showCancelarModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: 16, padding: 24, maxWidth: 420, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(239,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <XCircle style={{ width: 18, height: 18, color: '#ef4444' }} />
+              </div>
+              <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Cancelar pedido</p>
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 16px', lineHeight: 1.5 }}>
+              ¿Estás seguro de que quieres cancelar este pedido? Esta acción no se puede deshacer.
+            </p>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Motivo (opcional)</label>
+              <textarea
+                value={motivoCancelacion}
+                onChange={e => setMotivoCancelacion(e.target.value)}
+                placeholder="¿Por qué deseas cancelar?"
+                rows={3}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: 13, resize: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setShowCancelarModal(false); setMotivoCancelacion(''); }}
+                disabled={cancelando}
+                style={{ padding: '8px 16px', borderRadius: 9, border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                Volver
+              </button>
+              <button
+                onClick={handleCancelar}
+                disabled={cancelando}
+                style={{ padding: '8px 18px', borderRadius: 9, border: 'none', backgroundColor: '#ef4444', color: '#fff', fontSize: 13, fontWeight: 700, cursor: cancelando ? 'not-allowed' : 'pointer', opacity: cancelando ? 0.7 : 1 }}>
+                {cancelando ? 'Cancelando...' : 'Sí, cancelar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

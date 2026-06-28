@@ -112,6 +112,25 @@ const post = <T>(path: string, body: unknown) =>
 const patch = <T>(path: string, body: unknown) =>
   apiFetch<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
 
+// ─── Upload helper (multipart/form-data) ──────────────────────
+export async function uploadImagen(
+  endpoint: string,
+  file: File,
+): Promise<{ url: string; publicId: string }> {
+  const token = tokenStorage.getAccess();
+  const formData = new FormData();
+  formData.append('imagen', file);
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(body.error ?? 'Error al subir imagen');
+  }
+  return res.json();
+}
 // ═══════════════════════════════════════════════════════════════
 //  AUTH
 // ═══════════════════════════════════════════════════════════════

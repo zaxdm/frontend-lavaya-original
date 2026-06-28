@@ -2,12 +2,13 @@
 // app/cliente/perfil/page.tsx — Perfil con tabs: Perfil | Direcciones | Seguridad | Configuración
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  User, MapPin, Shield, Settings, Save, Camera,
+  User, MapPin, Shield, Settings, Save,
   Upload, Plus, Trash2, Navigation, Search,
   Eye, EyeOff, Loader2, Lock, Bell, Moon, Sun,
   AlertTriangle, CheckCircle, LogOut,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import AvatarUpload from '@/components/ui/AvatarUpload';
 import { useTheme } from '@/hooks/useTheme';
 import { useNotifications } from '@/hooks/useNotifications';
 import Avatar from '@/components/ui/Avatar';
@@ -449,15 +450,13 @@ export default function ClientePerfil() {
           {/* ─── Hero con avatar ─── */}
           <div style={{ ...S.card, padding: 18 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ position: 'relative', flexShrink: 0 }}>
-                <div style={{ width: 64, height: 64, borderRadius: '50%', overflow: 'hidden', border: `3px solid ${ACCENT}`, boxShadow: `0 0 0 4px var(--bg-card)` }}>
-                  <Avatar src={user?.fotoPerfil} nombre={user?.nombre ?? '?'} apellido={user?.apellido ?? ''} size={64} gradient="linear-gradient(135deg,#0ea5e9,#6366f1)" />
-                </div>
-                <label style={{ position: 'absolute', bottom: 0, right: 0, width: 22, height: 22, borderRadius: '50%', backgroundColor: ACCENT, border: '2px solid var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                  <Camera style={{ width: 10, height: 10, color: '#fff' }} />
-                  <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f && f.size > 2 * 1024 * 1024) { toast.error('Máx. 2MB'); return; } if (f) { const r = new FileReader(); r.onload = ev => ev.target?.result && updateUser({ ...user!, fotoPerfil: ev.target.result as string }); r.readAsDataURL(f); } }} />
-                </label>
-              </div>
+              <AvatarUpload
+                currentUrl={user?.fotoPerfil}
+                initials={`${user?.nombre?.[0] ?? ''}${user?.apellido?.[0] ?? ''}`}
+                gradient="linear-gradient(135deg,#0ea5e9,#6366f1)"
+                size={64}
+                onSuccess={url => updateUser({ ...user!, fotoPerfil: url })}
+              />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{user?.nombre} {user?.apellido}</p>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '3px 0 0' }}>{user?.email}</p>

@@ -3,14 +3,14 @@
 // Solo cambia el portal visual
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import Image from 'next/image';
-import { User, Shield, Palette, Bell, Camera, Save, Eye, EyeOff, Sun, Moon, Lock, Upload, CheckCircle2, BellOff } from 'lucide-react';
+import { User, Shield, Palette, Bell, Save, Eye, EyeOff, Sun, Moon, Lock, CheckCircle2, BellOff } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useNotifications } from '@/hooks/useNotifications';
 import { getAvatarUrl, buildPresetAvatars } from '@/lib/avatar';
 import PageHeader from '@/components/ui/PageHeader';
 import Spinner from '@/components/ui/Spinner';
+import AvatarUpload from '@/components/ui/AvatarUpload';
 import toast from 'react-hot-toast';
 
 type Tab = 'perfil' | 'seguridad' | 'apariencia' | 'notificaciones';
@@ -106,15 +106,13 @@ export default function EmpleadoCuenta() {
         {/* Hero */}
         <div style={{ ...S.card, padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ position: 'relative', flexShrink: 0 }}>
-              <div style={{ width: 72, height: 72, borderRadius: '50%', overflow: 'hidden', border: `3px solid ${ACCENT}`, boxShadow: '0 0 0 4px var(--bg-card)' }}>
-                {avatarUrl ? <Image src={avatarUrl} alt="avatar" width={72} height={72} style={{ width: '100%', height: '100%', objectFit: 'cover' }} unoptimized />
-                  : <div style={{ width: '100%', height: '100%', background: `linear-gradient(135deg,${ACCENT},#a855f7)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 22, fontWeight: 700 }}>{user?.nombre?.[0]}{user?.apellido?.[0]}</div>}
-              </div>
-              <button onClick={() => setShowPicker(true)} style={{ position: 'absolute', bottom: 0, right: 0, width: 24, height: 24, borderRadius: '50%', backgroundColor: ACCENT, border: '2px solid var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                <Camera style={{ width: 11, height: 11, color: '#fff' }} />
-              </button>
-            </div>
+            <AvatarUpload
+              currentUrl={user?.fotoPerfil}
+              initials={`${user?.nombre?.[0] ?? ''}${user?.apellido?.[0] ?? ''}`}
+              gradient={`linear-gradient(135deg,${ACCENT},#a855f7)`}
+              size={72}
+              onSuccess={url => { setAvatarUrl(url); updateUser({ ...user!, fotoPerfil: url }); }}
+            />
             <div>
               <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{user?.nombre} {user?.apellido}</p>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '3px 0 0' }}>{user?.email}</p>
@@ -122,23 +120,6 @@ export default function EmpleadoCuenta() {
             </div>
           </div>
         </div>
-
-        {/* Avatar picker */}
-        {showPicker && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} onClick={() => setShowPicker(false)} />
-            <div style={{ ...S.card, position: 'relative', zIndex: 1, width: '100%', maxWidth: 380, padding: 22 }}>
-              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14 }}>Elige avatar</p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 14 }}>
-                {presets.map((url, i) => <button key={i} onClick={() => { setAvatarUrl(url); setShowPicker(false); }} style={{ padding: 0, border: avatarUrl === url ? `2px solid ${ACCENT}` : '2px solid transparent', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', background: 'none' }}><Image src={url} alt="" width={60} height={60} style={{ display: 'block', width: '100%', aspectRatio: '1', borderRadius: 8 }} unoptimized /></button>)}
-              </div>
-              <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { const r = new FileReader(); r.onload = ev => { if (ev.target?.result) { setAvatarUrl(ev.target.result as string); setShowPicker(false); } }; r.readAsDataURL(f); } }} />
-              <button onClick={() => fileRef.current?.click()} style={{ width: '100%', padding: '9px', borderRadius: 10, border: '1.5px dashed var(--border)', backgroundColor: 'var(--bg-muted)', color: 'var(--text-secondary)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <Upload style={{ width: 14, height: 14 }} /> Subir imagen
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 4, backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 4 }}>

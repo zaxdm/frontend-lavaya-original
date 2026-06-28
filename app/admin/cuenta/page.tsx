@@ -1,11 +1,10 @@
 'use client';
 // app/admin/cuenta/page.tsx
 import { useEffect, useRef, useState } from 'react';
-import Image from 'next/image';
 import {
   User, Shield, Palette, Bell,
-  Camera, Save, Eye, EyeOff, Sun, Moon,
-  CheckCircle2, AlertCircle, Lock, Upload, BellOff,
+  Save, Eye, EyeOff, Sun, Moon,
+  CheckCircle2, AlertCircle, Lock, BellOff,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
@@ -13,6 +12,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { getAvatarUrl } from '@/lib/avatar';
 import PageHeader from '@/components/ui/PageHeader';
 import Spinner from '@/components/ui/Spinner';
+import AvatarUpload from '@/components/ui/AvatarUpload';
 import toast from 'react-hot-toast';
 
 // ─── Tipos de tab ─────────────────────────────────────────────
@@ -178,28 +178,13 @@ export default function CuentaPage() {
         {/* ─── Hero con avatar ─────────────────────────────── */}
         <div style={{ ...S.card, marginBottom: 24, padding: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-
-            {/* Avatar con botón de edición */}
-            <div style={{ position: 'relative', flexShrink: 0 }}>
-              <div style={{ width: 80, height: 80, borderRadius: '50%', overflow: 'hidden', border: '3px solid var(--accent)', boxShadow: '0 0 0 4px var(--bg-card)' }}>
-                {avatarUrl ? (
-                  <Image src={avatarUrl} alt="Avatar" width={80} height={80} style={{ width: '100%', height: '100%', objectFit: 'cover' }} unoptimized />
-                ) : (
-                  <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg,#3b82f6,#6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, fontWeight: 700 }}>
-                    {user?.nombre?.[0]}{user?.apellido?.[0]}
-                  </div>
-                )}
-              </div>
-              {/* Botón editar avatar */}
-              <button
-                onClick={() => setShowAvatarPicker(true)}
-                style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', backgroundColor: 'var(--accent)', border: '2px solid var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-              >
-                <Camera style={{ width: 12, height: 12, color: '#fff' }} />
-              </button>
-            </div>
-
-            {/* Info */}
+            <AvatarUpload
+              currentUrl={user?.fotoPerfil}
+              initials={`${user?.nombre?.[0] ?? ''}${user?.apellido?.[0] ?? ''}`}
+              gradient="linear-gradient(135deg,#3b82f6,#6366f1)"
+              size={80}
+              onSuccess={url => { setAvatarUrl(url); updateUser({ ...user!, fotoPerfil: url }); }}
+            />
             <div style={{ flex: 1, minWidth: 0 }}>
               <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
                 {user?.nombre} {user?.apellido}
@@ -211,46 +196,6 @@ export default function CuentaPage() {
             </div>
           </div>
         </div>
-
-        {/* ─── Avatar picker modal ──────────────────────────── */}
-        {showAvatarPicker && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} onClick={() => setShowAvatarPicker(false)} />
-            <div style={{ ...S.card, position: 'relative', width: '100%', maxWidth: 440, padding: 24, zIndex: 1 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Elige tu avatar</h3>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>Selecciona uno de los predefinidos o sube tu propia imagen</p>
-
-              {/* Grid de presets */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 20 }}>
-                {presets.map((url, i) => (
-                  <button key={i} onClick={() => selectPreset(url)}
-                    style={{ padding: 0, border: avatarUrl === url ? '2px solid var(--accent)' : '2px solid transparent', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', background: 'none', boxShadow: avatarUrl === url ? '0 0 0 3px rgba(59,130,246,0.25)' : 'none', transition: 'all 0.15s' }}>
-                    <Image src={url} alt={`Avatar ${i+1}`} width={72} height={72} style={{ display: 'block', width: '100%', aspectRatio: '1', borderRadius: 10 }} unoptimized />
-                  </button>
-                ))}
-              </div>
-
-              {/* Subir imagen */}
-              <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
-              <button onClick={() => fileInputRef.current?.click()}
-                style={{ width: '100%', padding: '10px 16px', borderRadius: 10, border: '1.5px dashed var(--border)', backgroundColor: 'var(--bg-muted)', color: 'var(--text-secondary)', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <Upload style={{ width: 16, height: 16 }} />
-                Subir imagen propia (máx. 2MB)
-              </button>
-
-              <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-                <button onClick={() => setShowAvatarPicker(false)}
-                  style={{ flex: 1, padding: '9px 16px', borderRadius: 10, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: 14, cursor: 'pointer' }}>
-                  Cancelar
-                </button>
-                <button onClick={() => { setShowAvatarPicker(false); toast.success('Avatar seleccionado — guarda los cambios para aplicarlo'); }}
-                  style={{ ...S.btnPrimary, flex: 1, justifyContent: 'center' }}>
-                  Confirmar
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ─── Tabs ────────────────────────────────────────── */}
         <div style={{ display: 'flex', gap: 4, backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 4, marginBottom: 24 }}>
