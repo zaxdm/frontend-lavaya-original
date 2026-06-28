@@ -23,7 +23,6 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard',      href: '/admin/dashboard', icon: LayoutDashboard },
   { label: 'Pedidos',        href: '/admin/pedidos',   icon: ShoppingBag },
   { label: 'Usuarios',       href: '/admin/usuarios',  icon: Users,      adminOnly: true },
-  { label: 'Clientes',       href: '/admin/clientes',  icon: UserCheck,  adminOnly: true },
   { label: 'Empresas B2B',   href: '/admin/b2b',       icon: Building2,  adminOnly: true },
   { label: 'Catálogo',       href: '/admin/catalogo',  icon: Package,    adminOnly: true },
   { label: 'Configuración',  href: '/admin/settings',  icon: Settings,   adminOnly: true },
