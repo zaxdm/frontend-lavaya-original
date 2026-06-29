@@ -35,6 +35,13 @@ export default function ClienteDashboard() {
       finally { setLoading(false); }
     };
     load();
+
+    // Recargar puntos cuando el usuario vuelve a la pestaña
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
 
   const ESTADO_COLOR: Record<string, string> = {

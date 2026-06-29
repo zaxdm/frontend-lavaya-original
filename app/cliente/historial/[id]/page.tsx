@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, ShoppingBag, MapPin, Truck, CreditCard,
-  CheckCircle2, Circle, Star, MessageCircle, XCircle,
+  CheckCircle2, Circle, Star, MessageCircle, XCircle, Zap,
 } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import Spinner from '@/components/ui/Spinner';
@@ -298,6 +298,20 @@ export default function HistorialDetallePage() {
               alt="Foto de entrega del pedido"
               style={{ width: '100%', maxHeight: 320, objectFit: 'cover', display: 'block' }}
             />
+          </div>
+        )}
+
+        {/* ─── Puntos ganados ─── */}
+        {pedido.estado === 'ENTREGADO' && pedido.puntosGanados && (
+          <div style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', borderRadius: 14, padding: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Zap style={{ width: 22, height: 22, color: '#fff' }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', margin: 0, fontWeight: 600 }}>PUNTOS GANADOS</p>
+              <p style={{ fontSize: 26, fontWeight: 900, color: '#fff', margin: '2px 0 0', lineHeight: 1 }}>+{pedido.puntosGanados.cantidad} pts</p>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', margin: '4px 0 0' }}>{pedido.puntosGanados.concepto}</p>
+            </div>
           </div>
         )}
 

@@ -2,7 +2,7 @@
 // app/cliente/historial/page.tsx — 4 estados simplificados para el cliente
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ShoppingBag, ChevronRight, Clock, WashingMachine, Truck, CheckCircle, XCircle } from 'lucide-react';
+import { ShoppingBag, ChevronRight, Clock, WashingMachine, Truck, CheckCircle, XCircle, Zap } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import Spinner from '@/components/ui/Spinner';
 import {
@@ -206,6 +206,12 @@ export default function ClienteHistorial() {
                         <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                           {formatCurrency(p.pago.monto)}
                         </p>
+                      )}
+                      {esEntregado && p.puntosGanados && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 700, color: '#d97706', backgroundColor: 'rgba(245,158,11,0.12)', padding: '2px 8px', borderRadius: 999 }}>
+                          <Zap style={{ width: 10, height: 10 }} />
+                          +{p.puntosGanados.cantidad} pts
+                        </span>
                       )}
                       <ChevronRight style={{ width: 14, height: 14, color: 'var(--text-hint)' }} />
                     </div>
