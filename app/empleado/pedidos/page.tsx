@@ -41,6 +41,8 @@ const GRUPOS = [
   { key: 'en_lavanderia', label: 'En lavandería',   icon: WashingMachine,color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
   { key: 'lavando',       label: 'Lavando',         icon: WashingMachine,color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
   { key: 'listo',         label: 'Listo',           icon: CheckCircle2,  color: '#14b8a6', bg: 'rgba(20,184,166,0.1)' },
+  { key: 'camino',        label: 'En camino',       icon: Truck,         color: '#f97316', bg: 'rgba(249,115,22,0.1)' },
+  { key: 'entregado',     label: 'Entregado',       icon: CheckCircle2,  color: '#22c55e', bg: 'rgba(34,197,94,0.1)'  },
 ];
 
 // Acción del empleado según estado — SOLO para estados en lavandería
@@ -312,15 +314,22 @@ export default function EmpleadoPedidos() {
 
                         {/* Repartidor */}
                         <td style={{ padding: '14px 16px', fontSize: 12, color: 'var(--text-secondary)' }}>
-                          {['PENDIENTE','CONFIRMADO','RECOLECTADO','EN_PROCESO'].includes(p.estado) ? (
-                            p.repartidorRecoleccion
-                              ? <span>{p.repartidorRecoleccion.usuario.nombre} {p.repartidorRecoleccion.usuario.apellido}</span>
-                              : <span style={{ color: '#f59e0b', fontSize: 11, fontWeight: 600 }}>Sin asignar (recojo)</span>
-                          ) : (
-                            p.repartidorEntrega
-                              ? <span>{p.repartidorEntrega.usuario.nombre} {p.repartidorEntrega.usuario.apellido}</span>
-                              : <span style={{ color: '#f59e0b', fontSize: 11, fontWeight: 600 }}>Sin asignar (entrega)</span>
-                          )}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {/* Repartidor de recojo */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', padding: '1px 6px', borderRadius: 999, flexShrink: 0 }}>Recojo</span>
+                              {p.repartidorRecoleccion
+                                ? <span>{p.repartidorRecoleccion.usuario.nombre} {p.repartidorRecoleccion.usuario.apellido}</span>
+                                : <span style={{ color: '#f59e0b', fontStyle: 'italic' }}>Sin asignar</span>}
+                            </div>
+                            {/* Repartidor de entrega */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', padding: '1px 6px', borderRadius: 999, flexShrink: 0 }}>Entrega</span>
+                              {p.repartidorEntrega
+                                ? <span>{p.repartidorEntrega.usuario.nombre} {p.repartidorEntrega.usuario.apellido}</span>
+                                : <span style={{ color: '#f59e0b', fontStyle: 'italic' }}>Sin asignar</span>}
+                            </div>
+                          </div>
                         </td>
 
                         {/* Pago */}
@@ -396,7 +405,6 @@ export default function EmpleadoPedidos() {
         </div>
       </div>
 
-      {/* ── Modal detalle ── */}
       <Modal open={showDetalle} onClose={() => setShowDetalle(false)} title="Detalle del pedido" size="lg">
         {pedidoDetalle && (
           <div style={{ padding: 24 }}>
@@ -415,6 +423,47 @@ export default function EmpleadoPedidos() {
                 </div>
               ))}
             </div>
+
+            {/* Repartidores */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+              {/* Repartidor de recojo */}
+              <div style={{ backgroundColor: 'var(--bg-muted)', borderRadius: 10, padding: 14, border: '1px solid var(--border)' }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 8px' }}>Repartidor de recojo</p>
+                {(pedidoDetalle as any).repartidorRecoleccion ? (
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                      {(pedidoDetalle as any).repartidorRecoleccion.usuario.nombre} {(pedidoDetalle as any).repartidorRecoleccion.usuario.apellido}
+                    </p>
+                    {(pedidoDetalle as any).repartidorRecoleccion.usuario.telefono && (
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '3px 0 0' }}>
+                        {(pedidoDetalle as any).repartidorRecoleccion.usuario.telefono}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 13, color: 'var(--text-hint)', fontStyle: 'italic', margin: 0 }}>Sin asignar</p>
+                )}
+              </div>
+              {/* Repartidor de entrega */}
+              <div style={{ backgroundColor: 'var(--bg-muted)', borderRadius: 10, padding: 14, border: '1px solid var(--border)' }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 8px' }}>Repartidor de entrega</p>
+                {(pedidoDetalle as any).repartidorEntrega ? (
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                      {(pedidoDetalle as any).repartidorEntrega.usuario.nombre} {(pedidoDetalle as any).repartidorEntrega.usuario.apellido}
+                    </p>
+                    {(pedidoDetalle as any).repartidorEntrega.usuario.telefono && (
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '3px 0 0' }}>
+                        {(pedidoDetalle as any).repartidorEntrega.usuario.telefono}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 13, color: 'var(--text-hint)', fontStyle: 'italic', margin: 0 }}>Sin asignar</p>
+                )}
+              </div>
+            </div>
+
             {pedidoDetalle.prendas && pedidoDetalle.prendas.length > 0 && (
               <div style={{ marginBottom: 24 }}>
                 <h3 style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Prendas ({pedidoDetalle.totalPrendas})</h3>
@@ -460,7 +509,7 @@ export default function EmpleadoPedidos() {
               })();
               if (!foto) return null;
               return (
-                <div>
+                <div style={{ marginTop: 24 }}>
                   <h3 style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }} /> Foto de entrega
                   </h3>

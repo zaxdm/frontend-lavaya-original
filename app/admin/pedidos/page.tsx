@@ -169,14 +169,30 @@ export default function PedidosPage() {
                         ) : <span style={{ fontSize: 12, color: 'var(--text-hint)' }}>Sin pago</span>}
                       </td>
                       <td style={{ ...S.td, fontSize: 13, color: 'var(--text-secondary)' }}>
-                        {p.repartidorRecoleccion ? `${p.repartidorRecoleccion.usuario.nombre} ${p.repartidorRecoleccion.usuario.apellido}` : <span style={{ color: 'var(--text-hint)' }}>Sin asignar</span>}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', padding: '1px 5px', borderRadius: 999, flexShrink: 0 }}>Recojo</span>
+                            {p.repartidorRecoleccion
+                              ? <span>{p.repartidorRecoleccion.usuario.nombre} {p.repartidorRecoleccion.usuario.apellido}</span>
+                              : <span style={{ color: 'var(--text-hint)', fontStyle: 'italic' }}>Sin asignar</span>}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', padding: '1px 5px', borderRadius: 999, flexShrink: 0 }}>Entrega</span>
+                            {p.repartidorEntrega
+                              ? <span>{p.repartidorEntrega.usuario.nombre} {p.repartidorEntrega.usuario.apellido}</span>
+                              : <span style={{ color: 'var(--text-hint)', fontStyle: 'italic' }}>Sin asignar</span>}
+                          </div>
+                        </div>
                       </td>
                       <td style={{ ...S.td, fontSize: 12, color: 'var(--text-secondary)' }}>{formatDate(p.createdAt)}</td>
                       <td style={S.td}>
                         <div style={{ display: 'flex', gap: 4 }}>
                           <button onClick={() => verDetalle(p)} title="Ver detalle" className="p-1.5 rounded-lg transition-colors hover:bg-blue-50 hover:text-blue-600" style={{ color: 'var(--text-secondary)' }}><Eye className="w-4 h-4" /></button>
                           {['PENDIENTE','CONFIRMADO'].includes(p.estado) && !p.repartidorRecoleccionId && (
-                            <button onClick={() => abrirAsignar(p)} title="Asignar repartidor" className="p-1.5 rounded-lg transition-colors hover:bg-green-50 hover:text-green-600" style={{ color: 'var(--text-secondary)' }}><UserCheck className="w-4 h-4" /></button>
+                            <button onClick={() => abrirAsignar(p)} title="Asignar repartidor de recojo" className="p-1.5 rounded-lg transition-colors hover:bg-green-50 hover:text-green-600" style={{ color: 'var(--text-secondary)' }}><UserCheck className="w-4 h-4" /></button>
+                          )}
+                          {p.estado === 'LISTO' && !p.repartidorEntregaId && (
+                            <button onClick={() => { setTipoAsignacion('entrega'); abrirAsignar(p); }} title="Asignar repartidor de entrega" className="p-1.5 rounded-lg transition-colors hover:bg-teal-50 hover:text-teal-600" style={{ color: 'var(--text-secondary)' }}><UserCheck className="w-4 h-4" /></button>
                           )}
                         </div>
                       </td>
@@ -200,7 +216,6 @@ export default function PedidosPage() {
         )}
       </div>
 
-      {/* Modal Detalle */}
       <Modal open={showDetalle} onClose={() => setShowDetalle(false)} title="Detalle del pedido" size="lg">
         {pedidoDetalle && (
           <div className="p-6 space-y-6">
@@ -218,6 +233,44 @@ export default function PedidosPage() {
                   <div style={{ color: 'var(--text-primary)', fontSize: 13 }}>{row.value}</div>
                 </div>
               ))}
+            </div>
+
+            {/* Repartidores */}
+            <div className="grid grid-cols-2 gap-3">
+              <div style={{ backgroundColor: 'var(--bg-muted)', borderRadius: 10, padding: 14, border: '1px solid var(--border)' }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 8px' }}>Repartidor de recojo</p>
+                {(pedidoDetalle as any).repartidorRecoleccion ? (
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                      {(pedidoDetalle as any).repartidorRecoleccion.usuario.nombre} {(pedidoDetalle as any).repartidorRecoleccion.usuario.apellido}
+                    </p>
+                    {(pedidoDetalle as any).repartidorRecoleccion.usuario.telefono && (
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '3px 0 0' }}>
+                        {(pedidoDetalle as any).repartidorRecoleccion.usuario.telefono}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 13, color: 'var(--text-hint)', fontStyle: 'italic', margin: 0 }}>Sin asignar</p>
+                )}
+              </div>
+              <div style={{ backgroundColor: 'var(--bg-muted)', borderRadius: 10, padding: 14, border: '1px solid var(--border)' }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 8px' }}>Repartidor de entrega</p>
+                {(pedidoDetalle as any).repartidorEntrega ? (
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                      {(pedidoDetalle as any).repartidorEntrega.usuario.nombre} {(pedidoDetalle as any).repartidorEntrega.usuario.apellido}
+                    </p>
+                    {(pedidoDetalle as any).repartidorEntrega.usuario.telefono && (
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '3px 0 0' }}>
+                        {(pedidoDetalle as any).repartidorEntrega.usuario.telefono}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 13, color: 'var(--text-hint)', fontStyle: 'italic', margin: 0 }}>Sin asignar</p>
+                )}
+              </div>
             </div>
 
             {/* Prendas */}
