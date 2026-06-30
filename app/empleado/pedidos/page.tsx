@@ -45,12 +45,14 @@ const GRUPOS = [
   { key: 'entregado',     label: 'Entregado',       icon: CheckCircle2,  color: '#22c55e', bg: 'rgba(34,197,94,0.1)'  },
 ];
 
-// Acción del empleado según estado — SOLO para estados en lavandería
+// Acción del empleado según estado
 function getAccion(estado: EstadoPedido): { label: string; icon: React.ElementType; color: string } | null {
   if (estado === 'RECOLECTADO')
     return { label: 'Iniciar lavado', icon: WashingMachine, color: '#8b5cf6' };
   if (estado === 'EN_PROCESO')
     return { label: 'Marcar listo', icon: CheckCircle2, color: '#14b8a6' };
+  if (estado === 'LISTO')
+    return { label: 'En camino', icon: Truck, color: '#f97316' };
   return null;
 }
 
