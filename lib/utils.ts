@@ -45,27 +45,27 @@ export const ESTADO_PEDIDO_LABEL: Record<EstadoPedido, string> = {
 };
 
 // ── 4 estados que VE EL CLIENTE (simplificados) ───────────────
-//   Recibido    = PENDIENTE + CONFIRMADO + RECOLECTADO
-//   Lavando     = EN_PROCESO
-//   En camino   = LISTO + EN_CAMINO
+//   Por recoger  = PENDIENTE + CONFIRMADO
+//   En lavandería = RECOLECTADO + EN_PROCESO + LISTO
+//   En camino   = EN_CAMINO
 //   Entregado   = ENTREGADO
 export const ESTADO_PEDIDO_LABEL_CLIENTE: Record<EstadoPedido, string> = {
-  PENDIENTE:   'Recibido',
-  CONFIRMADO:  'Recibido',
-  RECOLECTADO: 'Recibido',
-  EN_PROCESO:  'Lavando',
-  LISTO:       'En camino',
+  PENDIENTE:   'Por recoger',
+  CONFIRMADO:  'Por recoger',
+  RECOLECTADO: 'En lavandería',
+  EN_PROCESO:  'En lavandería',
+  LISTO:       'En lavandería',
   EN_CAMINO:   'En camino',
   ENTREGADO:   'Entregado',
   CANCELADO:   'Cancelado',
 };
 
 export const ESTADO_PEDIDO_COLOR_CLIENTE: Record<EstadoPedido, string> = {
-  PENDIENTE:   'bg-blue-100 text-blue-800',
+  PENDIENTE:   'bg-yellow-100 text-yellow-800',
   CONFIRMADO:  'bg-blue-100 text-blue-800',
-  RECOLECTADO: 'bg-blue-100 text-blue-800',
+  RECOLECTADO: 'bg-purple-100 text-purple-800',
   EN_PROCESO:  'bg-purple-100 text-purple-800',
-  LISTO:       'bg-orange-100 text-orange-800',
+  LISTO:       'bg-purple-100 text-purple-800',
   EN_CAMINO:   'bg-orange-100 text-orange-800',
   ENTREGADO:   'bg-green-100 text-green-800',
   CANCELADO:   'bg-red-100 text-red-800',
@@ -75,33 +75,33 @@ export const ESTADO_PEDIDO_COLOR_CLIENTE: Record<EstadoPedido, string> = {
 export const ESTADO_PEDIDO_DESC_CLIENTE: Record<EstadoPedido, string> = {
   PENDIENTE:   'Recibimos tu pedido y estamos coordinando la recolección',
   CONFIRMADO:  'Un repartidor va a recoger tus prendas',
-  RECOLECTADO: 'Tus prendas están en camino a la lavandería',
+  RECOLECTADO: 'Tus prendas están en la lavandería',
   EN_PROCESO:  'Tus prendas se están lavando',
-  LISTO:       'Tus prendas están listas y en camino hacia ti',
+  LISTO:       'Tus prendas están listas',
   EN_CAMINO:   'Tus prendas están en camino hacia ti',
   ENTREGADO:   '¡Tus prendas fueron entregadas!',
   CANCELADO:   'El pedido fue cancelado',
 };
 
-// Etiquetas del empleado
+// Etiquetas del empleado/admin
 export const ESTADO_PEDIDO_LABEL_SIMPLE: Record<EstadoPedido, string> = {
   PENDIENTE:   'Por recoger',
   CONFIRMADO:  'Por recoger',
   RECOLECTADO: 'En lavandería',
-  EN_PROCESO:  'Lavando',
-  LISTO:       'Listo',
+  EN_PROCESO:  'En lavandería',
+  LISTO:       'En lavandería',
   EN_CAMINO:   'En camino',
   ENTREGADO:   'Entregado',
   CANCELADO:   'Cancelado',
 };
 
-// Grupo interno para filtros
+// Grupo interno para filtros — 4 grupos visibles
 export const GRUPO_ESTADO: Record<EstadoPedido, string> = {
   PENDIENTE:   'por_recoger',
   CONFIRMADO:  'por_recoger',
   RECOLECTADO: 'en_lavanderia',
-  EN_PROCESO:  'lavando',
-  LISTO:       'listo',
+  EN_PROCESO:  'en_lavanderia',
+  LISTO:       'en_lavanderia',
   EN_CAMINO:   'camino',
   ENTREGADO:   'entregado',
   CANCELADO:   'cancelado',
@@ -110,7 +110,7 @@ export const GRUPO_ESTADO: Record<EstadoPedido, string> = {
 export const ESTADO_PEDIDO_COLOR: Record<EstadoPedido, string> = {
   PENDIENTE:   'bg-yellow-100 text-yellow-800',
   CONFIRMADO:  'bg-blue-100 text-blue-800',
-  RECOLECTADO: 'bg-yellow-100 text-yellow-800',
+  RECOLECTADO: 'bg-purple-100 text-purple-800',
   EN_PROCESO:  'bg-purple-100 text-purple-800',
   LISTO:       'bg-teal-100 text-teal-800',
   EN_CAMINO:   'bg-orange-100 text-orange-800',

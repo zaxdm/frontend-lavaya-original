@@ -18,15 +18,14 @@ import toast from 'react-hot-toast';
 
 const ESTADOS: EstadoPedido[] = ['PENDIENTE','CONFIRMADO','RECOLECTADO','EN_PROCESO','LISTO','EN_CAMINO','ENTREGADO','CANCELADO'];
 
-// Grupos para el filtro rápido del admin
+// Grupos para el filtro rápido del admin — 4 grupos visibles
 const GRUPOS_ADMIN = [
-  { value: '',          label: 'Todos' },
-  { value: 'recibido',  label: 'Recibido' },
-  { value: 'lavando',   label: 'Lavando' },
-  { value: 'listo',     label: 'Listo' },
-  { value: 'camino',    label: 'En camino' },
-  { value: 'entregado', label: 'Entregado' },
-  { value: 'cancelado', label: 'Cancelado' },
+  { value: '',             label: 'Todos' },
+  { value: 'por_recoger',  label: 'Por recoger' },
+  { value: 'en_lavanderia',label: 'En lavandería' },
+  { value: 'camino',       label: 'En camino' },
+  { value: 'entregado',    label: 'Entregado' },
+  { value: 'cancelado',    label: 'Cancelado' },
 ];
 
 // Estilos inline con variables CSS — funcionan con cualquier versión de Tailwind

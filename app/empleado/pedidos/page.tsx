@@ -34,15 +34,13 @@ const S = {
   select: { padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: 14, outline: 'none' },
 };
 
-// ─── Grupos del empleado ──────────────────────────────────────
+// ─── Grupos del empleado — 4 grupos visibles ─────────────────
 const GRUPOS = [
-  { key: '',              label: 'Todos',           icon: Package,       color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
-  { key: 'por_recoger',   label: 'Por recoger',     icon: Truck,         color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-  { key: 'en_lavanderia', label: 'En lavandería',   icon: WashingMachine,color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
-  { key: 'lavando',       label: 'Lavando',         icon: WashingMachine,color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
-  { key: 'listo',         label: 'Listo',           icon: CheckCircle2,  color: '#14b8a6', bg: 'rgba(20,184,166,0.1)' },
-  { key: 'camino',        label: 'En camino',       icon: Truck,         color: '#f97316', bg: 'rgba(249,115,22,0.1)' },
-  { key: 'entregado',     label: 'Entregado',       icon: CheckCircle2,  color: '#22c55e', bg: 'rgba(34,197,94,0.1)'  },
+  { key: '',              label: 'Todos',         icon: Package,       color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
+  { key: 'por_recoger',   label: 'Por recoger',   icon: Truck,         color: '#f59e0b', bg: 'rgba(245,158,11,0.1)'  },
+  { key: 'en_lavanderia', label: 'En lavandería', icon: WashingMachine,color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)'  },
+  { key: 'camino',        label: 'En camino',     icon: Truck,         color: '#f97316', bg: 'rgba(249,115,22,0.1)'  },
+  { key: 'entregado',     label: 'Entregado',     icon: CheckCircle2,  color: '#22c55e', bg: 'rgba(34,197,94,0.1)'   },
 ];
 
 // Acción del empleado según estado
@@ -52,24 +50,24 @@ function getAccion(estado: EstadoPedido): { label: string; icon: React.ElementTy
   if (estado === 'EN_PROCESO')
     return { label: 'Marcar listo', icon: CheckCircle2, color: '#14b8a6' };
   if (estado === 'LISTO')
-    return { label: 'En camino', icon: Truck, color: '#f97316' };
+    return { label: 'Despachar — En camino', icon: Truck, color: '#f97316' };
   return null;
 }
 
-// Chip de estado visual para la tabla
+// Chip de estado visual para la tabla — 4 grupos visibles
 function EstadoChip({ estado }: { estado: string }) {
   const chips: Record<string, { label: string; color: string; bg: string }> = {
-    por_recoger:   { label: 'Por recoger',    color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-    en_lavanderia: { label: 'En lavandería',  color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
-    lavando:       { label: 'Lavando',        color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
-    listo:         { label: 'Listo',          color: '#14b8a6', bg: 'rgba(20,184,166,0.1)' },
-    camino:        { label: 'En camino',      color: '#f97316', bg: 'rgba(249,115,22,0.1)' },
-    entregado:     { label: 'Entregado',      color: '#22c55e', bg: 'rgba(34,197,94,0.1)'  },
-    cancelado:     { label: 'Cancelado',      color: '#ef4444', bg: 'rgba(239,68,68,0.1)'  },
+    por_recoger:   { label: 'Por recoger',    color: '#f59e0b', bg: 'rgba(245,158,11,0.1)'  },
+    en_lavanderia: { label: 'En lavandería',  color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)'  },
+    camino:        { label: 'En camino',      color: '#f97316', bg: 'rgba(249,115,22,0.1)'  },
+    entregado:     { label: 'Entregado',      color: '#22c55e', bg: 'rgba(34,197,94,0.1)'   },
+    cancelado:     { label: 'Cancelado',      color: '#ef4444', bg: 'rgba(239,68,68,0.1)'   },
   };
   const grupo = GRUPO_ESTADO[estado as EstadoPedido] ?? '';
   const chip  = chips[grupo];
   if (!chip) return null;
+  // Mostrar sub-label interno solo cuando está en lavandería
+  const subLabel = grupo === 'en_lavanderia' ? ESTADO_PEDIDO_LABEL[estado as EstadoPedido] : null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <span style={{
@@ -79,9 +77,9 @@ function EstadoChip({ estado }: { estado: string }) {
       }}>
         {chip.label}
       </span>
-      <span style={{ fontSize: 10, color: 'var(--text-hint)' }}>
-        {ESTADO_PEDIDO_LABEL[estado as EstadoPedido]}
-      </span>
+      {subLabel && (
+        <span style={{ fontSize: 10, color: 'var(--text-hint)' }}>{subLabel}</span>
+      )}
     </div>
   );
 }

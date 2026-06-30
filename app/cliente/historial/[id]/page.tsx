@@ -11,19 +11,25 @@ import Spinner from '@/components/ui/Spinner';
 import { pedidosApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 
+// 4 pasos visibles para el cliente
+const FLUJO_CLIENTE = [
+  { label: 'Por recoger',    color: '#f59e0b', estados: ['PENDIENTE', 'CONFIRMADO'] },
+  { label: 'En lavandería',  color: '#8b5cf6', estados: ['RECOLECTADO', 'EN_PROCESO', 'LISTO'] },
+  { label: 'En camino',      color: '#f97316', estados: ['EN_CAMINO'] },
+  { label: 'Entregado',      color: '#22c55e', estados: ['ENTREGADO'] },
+];
+
+// Para el historial interno (línea de tiempo técnica)
 const ESTADO_COLOR: Record<string, string> = {
-  PENDIENTE: '#f59e0b', CONFIRMADO: '#3b82f6', RECOLECTADO: '#6366f1',
-  EN_PROCESO: '#8b5cf6', LISTO: '#14b8a6', EN_CAMINO: '#f97316',
+  PENDIENTE: '#f59e0b', CONFIRMADO: '#3b82f6', RECOLECTADO: '#8b5cf6',
+  EN_PROCESO: '#8b5cf6', LISTO: '#8b5cf6', EN_CAMINO: '#f97316',
   ENTREGADO: '#22c55e', CANCELADO: '#ef4444',
 };
 const ESTADO_LABEL: Record<string, string> = {
-  PENDIENTE: 'Pendiente', CONFIRMADO: 'Confirmado', RECOLECTADO: 'Recolectado',
-  EN_PROCESO: 'En lavado', LISTO: 'Listo', EN_CAMINO: 'En camino',
+  PENDIENTE: 'Pendiente', CONFIRMADO: 'Confirmado', RECOLECTADO: 'En lavandería',
+  EN_PROCESO: 'Lavando', LISTO: 'Listo para salir', EN_CAMINO: 'En camino',
   ENTREGADO: 'Entregado', CANCELADO: 'Cancelado',
 };
-
-// Orden cronológico de estados para la línea de tiempo
-const FLUJO_ESTADOS = ['PENDIENTE', 'CONFIRMADO', 'RECOLECTADO', 'EN_PROCESO', 'LISTO', 'EN_CAMINO', 'ENTREGADO'];
 
 const formatDate = (s?: string) =>
   s ? new Date(s).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -99,7 +105,8 @@ export default function HistorialDetallePage() {
   const color = ESTADO_COLOR[pedido.estado] ?? '#64748b';
   const label = ESTADO_LABEL[pedido.estado] ?? pedido.estado;
   const cancelado = pedido.estado === 'CANCELADO';
-  const idxActual = FLUJO_ESTADOS.indexOf(pedido.estado);
+  // Índice del paso actual en los 4 grupos del cliente
+  const idxPasoActual = FLUJO_CLIENTE.findIndex(p => p.estados.includes(pedido.estado));
 
   const items = pedido.items ?? pedido.prendas ?? [];
   const direccion = pedido.direccion ?? pedido.direccionEntrega ?? null;
@@ -156,28 +163,28 @@ export default function HistorialDetallePage() {
           )}
         </div>
 
-        {/* ─── Línea de tiempo ─── */}
+        {/* ─── Línea de tiempo — 4 pasos del cliente ─── */}
         {!cancelado && (
           <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: 20 }}>
             <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px' }}>Seguimiento</p>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {FLUJO_ESTADOS.map((est, i) => {
-                const completado = i <= idxActual;
-                const esActual = i === idxActual;
+              {FLUJO_CLIENTE.map((paso, i) => {
+                const completado = i <= idxPasoActual;
+                const esActual   = i === idxPasoActual;
                 return (
-                  <div key={est} style={{ display: 'flex', gap: 12 }}>
+                  <div key={paso.label} style={{ display: 'flex', gap: 12 }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       {completado ? (
-                        <CheckCircle2 style={{ width: 18, height: 18, color: esActual ? color : '#22c55e', flexShrink: 0 }} />
+                        <CheckCircle2 style={{ width: 18, height: 18, color: esActual ? paso.color : '#22c55e', flexShrink: 0 }} />
                       ) : (
                         <Circle style={{ width: 18, height: 18, color: 'var(--border)', flexShrink: 0 }} />
                       )}
-                      {i < FLUJO_ESTADOS.length - 1 && (
-                        <div style={{ width: 2, flex: 1, minHeight: 22, backgroundColor: completado && i < idxActual ? '#22c55e' : 'var(--border)', margin: '2px 0' }} />
+                      {i < FLUJO_CLIENTE.length - 1 && (
+                        <div style={{ width: 2, flex: 1, minHeight: 22, backgroundColor: completado && i < idxPasoActual ? '#22c55e' : 'var(--border)', margin: '2px 0' }} />
                       )}
                     </div>
                     <p style={{ fontSize: 13, fontWeight: esActual ? 700 : 500, color: completado ? 'var(--text-primary)' : 'var(--text-hint)', margin: '0 0 18px' }}>
-                      {ESTADO_LABEL[est]}
+                      {paso.label}
                     </p>
                   </div>
                 );

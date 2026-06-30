@@ -26,29 +26,29 @@ const FILTROS_CLIENTE = [
 // Icono según estado simplificado
 function EstadoIcon({ estado }: { estado: string }) {
   const s = { width: 18, height: 18 };
-  if (['PENDIENTE', 'CONFIRMADO', 'RECOLECTADO'].includes(estado))
-    return <ShoppingBag style={{ ...s, color: '#3b82f6' }} />;
-  if (estado === 'EN_PROCESO')
+  if (['PENDIENTE', 'CONFIRMADO'].includes(estado))
+    return <ShoppingBag style={{ ...s, color: '#f59e0b' }} />;
+  if (['RECOLECTADO', 'EN_PROCESO', 'LISTO'].includes(estado))
     return <WashingMachine style={{ ...s, color: '#8b5cf6' }} />;
-  if (['LISTO', 'EN_CAMINO'].includes(estado))
+  if (estado === 'EN_CAMINO')
     return <Truck style={{ ...s, color: '#f97316' }} />;
   if (estado === 'ENTREGADO')
     return <CheckCircle style={{ ...s, color: '#22c55e' }} />;
   return <XCircle style={{ ...s, color: '#ef4444' }} />;
 }
 
-// Barra de progreso (4 pasos)
+// Barra de progreso — 4 pasos visibles: Por recoger → En lavandería → En camino → Entregado
 function ProgressBar({ estado }: { estado: string }) {
   const step =
-    ['PENDIENTE','CONFIRMADO','RECOLECTADO'].includes(estado) ? 1 :
-    estado === 'EN_PROCESO' ? 2 :
-    ['LISTO','EN_CAMINO'].includes(estado) ? 3 :
-    estado === 'ENTREGADO' ? 4 : 0;
+    ['PENDIENTE','CONFIRMADO'].includes(estado)            ? 1 :
+    ['RECOLECTADO','EN_PROCESO','LISTO'].includes(estado)  ? 2 :
+    estado === 'EN_CAMINO'                                 ? 3 :
+    estado === 'ENTREGADO'                                 ? 4 : 0;
 
   if (step === 0) return null; // cancelado
 
-  const steps = ['Recibido', 'Lavando', 'En camino', 'Entregado'];
-  const colors = ['#3b82f6', '#8b5cf6', '#f97316', '#22c55e'];
+  const steps  = ['Por recoger', 'En lavandería', 'En camino', 'Entregado'];
+  const colors = ['#f59e0b', '#8b5cf6', '#f97316', '#22c55e'];
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
