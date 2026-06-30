@@ -11,7 +11,9 @@ export type EstadoPedido =
   | 'LISTO'
   | 'EN_CAMINO'
   | 'ENTREGADO'
-  | 'CANCELADO';
+  | 'CANCELADO'
+  | 'RETRASADO'
+  | 'REPROGRAMADO';
 
 export type EstadoPago = 'PENDIENTE' | 'COMPLETADO' | 'FALLIDO' | 'REEMBOLSADO';
 export type MetodoPago = 'PAYPAL' | 'EFECTIVO';

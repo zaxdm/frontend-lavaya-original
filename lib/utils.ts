@@ -34,88 +34,98 @@ export function formatDateShort(date: string | null | undefined): string {
 
 // ─── Labels de estados ────────────────────────────────────────
 export const ESTADO_PEDIDO_LABEL: Record<EstadoPedido, string> = {
-  PENDIENTE:   'Pendiente',
-  CONFIRMADO:  'Confirmado',
-  RECOLECTADO: 'Por lavar',
-  EN_PROCESO:  'En lavado',
-  LISTO:       'Listo para entrega',
-  EN_CAMINO:   'En camino',
-  ENTREGADO:   'Entregado',
-  CANCELADO:   'Cancelado',
+  PENDIENTE:    'Pendiente',
+  CONFIRMADO:   'Confirmado',
+  RECOLECTADO:  'Por lavar',
+  EN_PROCESO:   'En lavado',
+  LISTO:        'Listo para entrega',
+  EN_CAMINO:    'En camino',
+  ENTREGADO:    'Entregado',
+  CANCELADO:    'Cancelado',
+  RETRASADO:    'Retrasado',
+  REPROGRAMADO: 'Reprogramado',
 };
 
 // ── 4 estados que VE EL CLIENTE (simplificados) ───────────────
-//   Por recoger  = PENDIENTE + CONFIRMADO
-//   En lavandería = RECOLECTADO + EN_PROCESO + LISTO
-//   En camino   = EN_CAMINO
-//   Entregado   = ENTREGADO
 export const ESTADO_PEDIDO_LABEL_CLIENTE: Record<EstadoPedido, string> = {
-  PENDIENTE:   'Por recoger',
-  CONFIRMADO:  'Por recoger',
-  RECOLECTADO: 'En lavandería',
-  EN_PROCESO:  'En lavandería',
-  LISTO:       'En lavandería',
-  EN_CAMINO:   'En camino',
-  ENTREGADO:   'Entregado',
-  CANCELADO:   'Cancelado',
+  PENDIENTE:    'Por recoger',
+  CONFIRMADO:   'Por recoger',
+  RECOLECTADO:  'En lavandería',
+  EN_PROCESO:   'En lavandería',
+  LISTO:        'En lavandería',
+  EN_CAMINO:    'En camino',
+  ENTREGADO:    'Entregado',
+  CANCELADO:    'Cancelado',
+  RETRASADO:    'Recolección retrasada',
+  REPROGRAMADO: 'Reprogramado',
 };
 
 export const ESTADO_PEDIDO_COLOR_CLIENTE: Record<EstadoPedido, string> = {
-  PENDIENTE:   'bg-yellow-100 text-yellow-800',
-  CONFIRMADO:  'bg-blue-100 text-blue-800',
-  RECOLECTADO: 'bg-purple-100 text-purple-800',
-  EN_PROCESO:  'bg-purple-100 text-purple-800',
-  LISTO:       'bg-purple-100 text-purple-800',
-  EN_CAMINO:   'bg-orange-100 text-orange-800',
-  ENTREGADO:   'bg-green-100 text-green-800',
-  CANCELADO:   'bg-red-100 text-red-800',
+  PENDIENTE:    'bg-yellow-100 text-yellow-800',
+  CONFIRMADO:   'bg-blue-100 text-blue-800',
+  RECOLECTADO:  'bg-purple-100 text-purple-800',
+  EN_PROCESO:   'bg-purple-100 text-purple-800',
+  LISTO:        'bg-purple-100 text-purple-800',
+  EN_CAMINO:    'bg-orange-100 text-orange-800',
+  ENTREGADO:    'bg-green-100 text-green-800',
+  CANCELADO:    'bg-red-100 text-red-800',
+  RETRASADO:    'bg-red-100 text-red-900',
+  REPROGRAMADO: 'bg-cyan-100 text-cyan-800',
 };
 
-// Descripción amigable para el cliente (lo que le importa saber)
+// Descripción amigable para el cliente
 export const ESTADO_PEDIDO_DESC_CLIENTE: Record<EstadoPedido, string> = {
-  PENDIENTE:   'Recibimos tu pedido y estamos coordinando la recolección',
-  CONFIRMADO:  'Un repartidor va a recoger tus prendas',
-  RECOLECTADO: 'Tus prendas están en la lavandería',
-  EN_PROCESO:  'Tus prendas se están lavando',
-  LISTO:       'Tus prendas están listas',
-  EN_CAMINO:   'Tus prendas están en camino hacia ti',
-  ENTREGADO:   '¡Tus prendas fueron entregadas!',
-  CANCELADO:   'El pedido fue cancelado',
+  PENDIENTE:    'Recibimos tu pedido y estamos coordinando la recolección',
+  CONFIRMADO:   'Un repartidor va a recoger tus prendas',
+  RECOLECTADO:  'Tus prendas están en la lavandería',
+  EN_PROCESO:   'Tus prendas se están lavando',
+  LISTO:        'Tus prendas están listas',
+  EN_CAMINO:    'Tus prendas están en camino hacia ti',
+  ENTREGADO:    '¡Tus prendas fueron entregadas!',
+  CANCELADO:    'El pedido fue cancelado',
+  RETRASADO:    'No pudimos recoger tus prendas en la franja acordada. Estamos asignando un repartidor lo antes posible.',
+  REPROGRAMADO: 'Tu pedido fue reprogramado para una nueva fecha y franja horaria.',
 };
 
 // Etiquetas del empleado/admin
 export const ESTADO_PEDIDO_LABEL_SIMPLE: Record<EstadoPedido, string> = {
-  PENDIENTE:   'Por recoger',
-  CONFIRMADO:  'Por recoger',
-  RECOLECTADO: 'En lavandería',
-  EN_PROCESO:  'En lavandería',
-  LISTO:       'En lavandería',
-  EN_CAMINO:   'En camino',
-  ENTREGADO:   'Entregado',
-  CANCELADO:   'Cancelado',
+  PENDIENTE:    'Por recoger',
+  CONFIRMADO:   'Por recoger',
+  RECOLECTADO:  'En lavandería',
+  EN_PROCESO:   'En lavandería',
+  LISTO:        'En lavandería',
+  EN_CAMINO:    'En camino',
+  ENTREGADO:    'Entregado',
+  CANCELADO:    'Cancelado',
+  RETRASADO:    'Retrasado',
+  REPROGRAMADO: 'Reprogramado',
 };
 
-// Grupo interno para filtros — 4 grupos visibles
+// Grupo interno para filtros
 export const GRUPO_ESTADO: Record<EstadoPedido, string> = {
-  PENDIENTE:   'por_recoger',
-  CONFIRMADO:  'por_recoger',
-  RECOLECTADO: 'en_lavanderia',
-  EN_PROCESO:  'en_lavanderia',
-  LISTO:       'en_lavanderia',
-  EN_CAMINO:   'camino',
-  ENTREGADO:   'entregado',
-  CANCELADO:   'cancelado',
+  PENDIENTE:    'por_recoger',
+  CONFIRMADO:   'por_recoger',
+  RECOLECTADO:  'en_lavanderia',
+  EN_PROCESO:   'en_lavanderia',
+  LISTO:        'en_lavanderia',
+  EN_CAMINO:    'camino',
+  ENTREGADO:    'entregado',
+  CANCELADO:    'cancelado',
+  RETRASADO:    'por_recoger',  // sigue en la fase de recolección
+  REPROGRAMADO: 'por_recoger',  // nueva fecha pendiente de recolección
 };
 
 export const ESTADO_PEDIDO_COLOR: Record<EstadoPedido, string> = {
-  PENDIENTE:   'bg-yellow-100 text-yellow-800',
-  CONFIRMADO:  'bg-blue-100 text-blue-800',
-  RECOLECTADO: 'bg-purple-100 text-purple-800',
-  EN_PROCESO:  'bg-purple-100 text-purple-800',
-  LISTO:       'bg-teal-100 text-teal-800',
-  EN_CAMINO:   'bg-orange-100 text-orange-800',
-  ENTREGADO:   'bg-green-100 text-green-800',
-  CANCELADO:   'bg-red-100 text-red-800',
+  PENDIENTE:    'bg-yellow-100 text-yellow-800',
+  CONFIRMADO:   'bg-blue-100 text-blue-800',
+  RECOLECTADO:  'bg-purple-100 text-purple-800',
+  EN_PROCESO:   'bg-purple-100 text-purple-800',
+  LISTO:        'bg-teal-100 text-teal-800',
+  EN_CAMINO:    'bg-orange-100 text-orange-800',
+  ENTREGADO:    'bg-green-100 text-green-800',
+  CANCELADO:    'bg-red-100 text-red-800',
+  RETRASADO:    'bg-red-200 text-red-900',
+  REPROGRAMADO: 'bg-cyan-100 text-cyan-800',
 };
 
 export const ESTADO_PAGO_LABEL: Record<EstadoPago, string> = {
