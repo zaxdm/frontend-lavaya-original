@@ -33,6 +33,7 @@ export default function ClientePedidos() {
   const [cantidades, setCantidades] = useState<Record<string, number>>({});
   const [metodoPago, setMetodoPago] = useState<'PAYPAL' | 'EFECTIVO'>('EFECTIVO');
   const [fechaRecoleccion, setFechaRecoleccion] = useState('');
+  const [franjaRecoleccion, setFranjaRecoleccion] = useState('');
   const [notas, setNotas] = useState('');
   const [puntosACanjear, setPuntosACanjear] = useState(0);
 
@@ -81,18 +82,24 @@ export default function ClientePedidos() {
     if (totalPrendas === 0) { toast.error('Agrega al menos una prenda'); return; }
 
     if (fechaRecoleccion) {
-      const fecha = new Date(fechaRecoleccion);
+      if (!franjaRecoleccion) { toast.error('Selecciona una franja horaria'); return; }
+      const fecha = new Date(fechaRecoleccion + 'T' + franjaRecoleccion.split('-')[0] + ':00');
       const ahora = new Date();
-      const minFutura = new Date(ahora.getTime() + 60 * 60 * 1000);
-      if (fecha < minFutura) { toast.error('La fecha debe ser al menos 1 hora en el futuro'); return; }
+      const minFutura = new Date(ahora.getTime() + MIN_ANTICIPACION_H * 60 * 60 * 1000);
+      if (fecha < minFutura) { toast.error('La franja debe tener al menos 2 horas de anticipación'); return; }
       const maxFutura = new Date(ahora.getTime() + 30 * 24 * 60 * 60 * 1000);
       if (fecha > maxFutura) { toast.error('La fecha no puede ser más de 30 días en el futuro'); return; }
     }
 
     const prendas = Object.entries(cantidades).filter(([, v]) => v > 0).map(([tipo, cantidad]) => ({ tipo, cantidad }));
+    // Construir ISO del inicio de la franja elegida
+    const fechaISO = fechaRecoleccion && franjaRecoleccion
+      ? new Date(fechaRecoleccion + 'T' + franjaRecoleccion.split('-')[0] + ':00').toISOString()
+      : null;
     const payload = {
       direccionId, prendas, metodoPago,
-      fechaRecoleccion: fechaRecoleccion || null,
+      fechaRecoleccion: fechaISO,
+      franjaRecoleccion: franjaRecoleccion || undefined,
       notasCliente: notas || null,
       puntosACanjear: puntosACanjear > 0 ? puntosACanjear : undefined,
     };
@@ -140,7 +147,42 @@ export default function ClientePedidos() {
     }
   };
 
-  if (loading) return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spinner /></div>;
+  // ── Slots de franja horaria (2h cada uno, 08:00 → 20:00) ──────
+  const SLOTS = [
+    { label: '08:00 – 10:00', api: '08:00-10:00', horaInicio: 8  },
+    { label: '10:00 – 12:00', api: '10:00-12:00', horaInicio: 10 },
+    { label: '12:00 – 14:00', api: '12:00-14:00', horaInicio: 12 },
+    { label: '14:00 – 16:00', api: '14:00-16:00', horaInicio: 14 },
+    { label: '16:00 – 18:00', api: '16:00-18:00', horaInicio: 16 },
+    { label: '18:00 – 20:00', api: '18:00-20:00', horaInicio: 18 },
+  ];
+  const MIN_ANTICIPACION_H = 2;
+
+  // Devuelve true si el slot ya no tiene suficiente anticipación para HOY
+  const slotPasado = (horaInicio: number): boolean => {
+    if (!fechaRecoleccion) return false;
+    const ahora = new Date();
+    const selDia = new Date(fechaRecoleccion + 'T00:00:00');
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    if (selDia > hoy) return false; // día futuro → todos disponibles
+    const inicioSlot = new Date(ahora);
+    inicioSlot.setHours(horaInicio, 0, 0, 0);
+    const limite = new Date(ahora.getTime() + MIN_ANTICIPACION_H * 60 * 60 * 1000);
+    return inicioSlot < limite;
+  };
+
+  // Fecha mínima para el picker: hoy si aún hay slots con 2h de margen, si no mañana
+  const fechaMinPicker = (): string => {
+    const ahora = new Date();
+    const primerSlot = new Date(ahora); primerSlot.setHours(SLOTS[0].horaInicio, 0, 0, 0);
+    const limite = new Date(ahora.getTime() + MIN_ANTICIPACION_H * 60 * 60 * 1000);
+    const base = primerSlot > limite ? ahora : new Date(ahora.getTime() + 24 * 60 * 60 * 1000);
+    return base.toISOString().slice(0, 10);
+  };
+
+  const slotsFiltrados = SLOTS.filter(s => !slotPasado(s.horaInicio));
+
+
 
   const PASOS = ['Dirección', 'Prendas', 'Confirmar', metodoPago === 'PAYPAL' ? 'Pago' : ''];
 
@@ -338,18 +380,74 @@ export default function ClientePedidos() {
                 </div>
               )}
 
-              {/* Fecha */}
-              <div>
+              {/* Fecha y franja de recolección */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <label style={S.label}><Calendar style={{ width: 12, height: 12, display: 'inline', marginRight: 4 }} />Fecha de recolección (opcional)</label>
+
+                {/* Selector de día */}
                 <input
-                  type="datetime-local"
+                  type="date"
                   value={fechaRecoleccion}
-                  min={(() => { const d = new Date(Date.now() + 60 * 60 * 1000); return d.toISOString().slice(0, 16); })()}
-                  max={(() => { const d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); return d.toISOString().slice(0, 16); })()}
-                  onChange={e => setFechaRecoleccion(e.target.value)}
+                  min={fechaMinPicker()}
+                  max={(() => { const d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); return d.toISOString().slice(0, 10); })()}
+                  onChange={e => { setFechaRecoleccion(e.target.value); setFranjaRecoleccion(''); }}
                   style={S.input}
                 />
-                <p style={{ fontSize: 11, color: 'var(--text-hint)', marginTop: 4 }}>Mínimo 1 hora de anticipación · Máximo 30 días</p>
+
+                {/* Franjas horarias — solo aparecen al elegir fecha */}
+                {fechaRecoleccion && (
+                  <div>
+                    <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px', fontWeight: 600 }}>
+                      ¿En qué franja? <span style={{ fontWeight: 400, color: 'var(--text-hint)' }}>— mín. 2 h de anticipación</span>
+                    </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {SLOTS.map(slot => {
+                        const pasado  = slotPasado(slot.horaInicio);
+                        const activo  = franjaRecoleccion === slot.api;
+                        return (
+                          <button
+                            key={slot.api}
+                            disabled={pasado}
+                            onClick={() => !pasado && setFranjaRecoleccion(activo ? '' : slot.api)}
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: 10,
+                              border: `${activo ? 2 : 1}px solid ${pasado ? 'var(--border)' : activo ? 'var(--accent)' : 'var(--border)'}`,
+                              backgroundColor: pasado ? 'var(--bg-muted)' : activo ? 'var(--accent)' : 'var(--bg-base)',
+                              color: pasado ? 'var(--text-hint)' : activo ? '#fff' : 'var(--text-primary)',
+                              fontSize: 13,
+                              fontWeight: activo ? 700 : 500,
+                              cursor: pasado ? 'not-allowed' : 'pointer',
+                              textDecoration: pasado ? 'line-through' : 'none',
+                              opacity: pasado ? 0.5 : 1,
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            {slot.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {slotsFiltrados.length === 0 && (
+                      <p style={{ fontSize: 12, color: 'var(--text-hint)', marginTop: 6 }}>
+                        No hay franjas disponibles para hoy. Elige otro día.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {fechaRecoleccion && (
+                  <button
+                    onClick={() => { setFechaRecoleccion(''); setFranjaRecoleccion(''); }}
+                    style={{ alignSelf: 'flex-start', fontSize: 12, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  >
+                    ✕ Quitar fecha
+                  </button>
+                )}
+
+                <p style={{ fontSize: 11, color: 'var(--text-hint)', margin: 0 }}>
+                  Opcional · Si no eliges fecha te contactaremos para coordinar
+                </p>
               </div>
 
               {/* Método de pago */}
