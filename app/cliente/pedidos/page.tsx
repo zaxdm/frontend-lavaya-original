@@ -93,11 +93,20 @@ export default function ClientePedidos() {
     }
 
     const prendas = Object.entries(cantidades).filter(([, v]) => v > 0).map(([tipo, cantidad]) => ({ tipo, cantidad }));
-    // Construir la fecha en hora local (NO usar toISOString que convierte a UTC)
-    // Formato: "2026-06-30T08:00:00" — el backend lo parsea como hora local del servidor
-    const fechaISO = fechaRecoleccion && franjaRecoleccion
-      ? `${fechaRecoleccion}T${franjaRecoleccion.split('-')[0]}:00`
-      : null;
+    // Construir la fecha con el offset del timezone del navegador para que el servidor
+    // la interprete correctamente sin importar en qué zona horaria esté el servidor.
+    // Ej: cliente en Perú (UTC-5) → "2026-06-30T08:00:00-05:00"
+    let fechaISO: string | null = null;
+    if (fechaRecoleccion && franjaRecoleccion) {
+      const horaInicio = franjaRecoleccion.split('-')[0]; // "08:00"
+      const dt = new Date(`${fechaRecoleccion}T${horaInicio}:00`);
+      // Offset en minutos → formato "+HH:MM" o "-HH:MM"
+      const off = -dt.getTimezoneOffset();
+      const sign = off >= 0 ? '+' : '-';
+      const hh = String(Math.floor(Math.abs(off) / 60)).padStart(2, '0');
+      const mm = String(Math.abs(off) % 60).padStart(2, '0');
+      fechaISO = `${fechaRecoleccion}T${horaInicio}:00${sign}${hh}:${mm}`;
+    }
     const payload = {
       direccionId, prendas, metodoPago,
       fechaRecoleccion: fechaISO,
