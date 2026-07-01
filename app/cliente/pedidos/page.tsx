@@ -158,26 +158,21 @@ export default function ClientePedidos() {
   ];
   const MIN_ANTICIPACION_H = 2;
 
-  // Devuelve true si el slot ya no tiene suficiente anticipación para HOY
+  // Devuelve true si el slot no tiene 2h de anticipación para el día seleccionado
   const slotPasado = (horaInicio: number): boolean => {
     if (!fechaRecoleccion) return false;
     const ahora = new Date();
-    const selDia = new Date(fechaRecoleccion + 'T00:00:00');
-    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-    if (selDia > hoy) return false; // día futuro → todos disponibles
-    const inicioSlot = new Date(ahora);
+    // Construir la fecha exacta del inicio del slot en el día elegido
+    const inicioSlot = new Date(fechaRecoleccion + 'T00:00:00');
     inicioSlot.setHours(horaInicio, 0, 0, 0);
-    const limite = new Date(ahora.getTime() + MIN_ANTICIPACION_H * 60 * 60 * 1000);
-    return inicioSlot < limite;
+    // El slot está disponible si su inicio es al menos MIN_ANTICIPACION_H horas en el futuro
+    return inicioSlot.getTime() < ahora.getTime() + MIN_ANTICIPACION_H * 60 * 60 * 1000;
   };
 
-  // Fecha mínima para el picker: hoy si aún hay slots con 2h de margen, si no mañana
+  // La fecha mínima del picker siempre es hoy — los slots sin margen
+  // quedan visualmente deshabilitados dentro del día elegido.
   const fechaMinPicker = (): string => {
-    const ahora = new Date();
-    const primerSlot = new Date(ahora); primerSlot.setHours(SLOTS[0].horaInicio, 0, 0, 0);
-    const limite = new Date(ahora.getTime() + MIN_ANTICIPACION_H * 60 * 60 * 1000);
-    const base = primerSlot > limite ? ahora : new Date(ahora.getTime() + 24 * 60 * 60 * 1000);
-    return base.toISOString().slice(0, 10);
+    return new Date().toISOString().slice(0, 10);
   };
 
   const slotsFiltrados = SLOTS.filter(s => !slotPasado(s.horaInicio));
