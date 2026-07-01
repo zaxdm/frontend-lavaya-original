@@ -83,12 +83,13 @@ export default function ClientePedidos() {
 
     if (fechaRecoleccion) {
       if (!franjaRecoleccion) { toast.error('Selecciona una franja horaria'); return; }
-      const fecha = new Date(fechaRecoleccion + 'T' + franjaRecoleccion.split('-')[0] + ':00');
-      const ahora = new Date();
-      const minFutura = new Date(ahora.getTime() + MIN_ANTICIPACION_H * 60 * 60 * 1000);
-      if (fecha < minFutura) { toast.error('La franja debe tener al menos 2 horas de anticipación'); return; }
-      const maxFutura = new Date(ahora.getTime() + 30 * 24 * 60 * 60 * 1000);
-      if (fecha > maxFutura) { toast.error('La fecha no puede ser más de 30 días en el futuro'); return; }
+      // Verificar que la franja no haya terminado ya
+      const horaFin = SLOTS.find(s => s.api === franjaRecoleccion)?.horaFin ?? 0;
+      const finSlot = new Date(fechaRecoleccion + 'T00:00:00');
+      finSlot.setHours(horaFin, 0, 0, 0);
+      if (finSlot.getTime() <= Date.now()) { toast.error('Esta franja ya terminó, elige otra'); return; }
+      const maxFutura = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      if (finSlot > maxFutura) { toast.error('La fecha no puede ser más de 30 días en el futuro'); return; }
     }
 
     const prendas = Object.entries(cantidades).filter(([, v]) => v > 0).map(([tipo, cantidad]) => ({ tipo, cantidad }));
@@ -149,28 +150,26 @@ export default function ClientePedidos() {
 
   // ── Slots de franja horaria (2h cada uno, 08:00 → 20:00) ──────
   const SLOTS = [
-    { label: '08:00 – 10:00', api: '08:00-10:00', horaInicio: 8  },
-    { label: '10:00 – 12:00', api: '10:00-12:00', horaInicio: 10 },
-    { label: '12:00 – 14:00', api: '12:00-14:00', horaInicio: 12 },
-    { label: '14:00 – 16:00', api: '14:00-16:00', horaInicio: 14 },
-    { label: '16:00 – 18:00', api: '16:00-18:00', horaInicio: 16 },
-    { label: '18:00 – 20:00', api: '18:00-20:00', horaInicio: 18 },
+    { label: '08:00 – 10:00', api: '08:00-10:00', horaInicio: 8,  horaFin: 10 },
+    { label: '10:00 – 12:00', api: '10:00-12:00', horaInicio: 10, horaFin: 12 },
+    { label: '12:00 – 14:00', api: '12:00-14:00', horaInicio: 12, horaFin: 14 },
+    { label: '14:00 – 16:00', api: '14:00-16:00', horaInicio: 14, horaFin: 16 },
+    { label: '16:00 – 18:00', api: '16:00-18:00', horaInicio: 16, horaFin: 18 },
+    { label: '18:00 – 20:00', api: '18:00-20:00', horaInicio: 18, horaFin: 20 },
   ];
-  const MIN_ANTICIPACION_H = 2;
 
-  // Devuelve true si el slot no tiene 2h de anticipación para el día seleccionado
-  const slotPasado = (horaInicio: number): boolean => {
+  // Un slot está deshabilitado solo si su franja YA TERMINÓ completamente.
+  // Ej: son las 7:49 → el slot 08:00-10:00 termina a las 10:00, sigue disponible ✓
+  //     son las 10:05 → el slot 08:00-10:00 terminó a las 10:00, no disponible ✗
+  const slotPasado = (horaFin: number): boolean => {
     if (!fechaRecoleccion) return false;
     const ahora = new Date();
-    // Construir la fecha exacta del inicio del slot en el día elegido
-    const inicioSlot = new Date(fechaRecoleccion + 'T00:00:00');
-    inicioSlot.setHours(horaInicio, 0, 0, 0);
-    // El slot está disponible si su inicio es al menos MIN_ANTICIPACION_H horas en el futuro
-    return inicioSlot.getTime() < ahora.getTime() + MIN_ANTICIPACION_H * 60 * 60 * 1000;
+    const finSlot = new Date(fechaRecoleccion + 'T00:00:00');
+    finSlot.setHours(horaFin, 0, 0, 0);
+    return finSlot.getTime() <= ahora.getTime();
   };
 
   // La fecha mínima del picker siempre es hoy en hora local.
-  // NO usar toISOString() porque convierte a UTC y puede dar ayer/mañana según el timezone.
   const fechaMinPicker = (): string => {
     const hoy = new Date();
     const yyyy = hoy.getFullYear();
@@ -179,7 +178,7 @@ export default function ClientePedidos() {
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  const slotsFiltrados = SLOTS.filter(s => !slotPasado(s.horaInicio));
+  const slotsFiltrados = SLOTS.filter(s => !slotPasado(s.horaFin));
 
 
 
@@ -400,11 +399,11 @@ export default function ClientePedidos() {
                 {fechaRecoleccion && (
                   <div>
                     <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px', fontWeight: 600 }}>
-                      ¿En qué franja? <span style={{ fontWeight: 400, color: 'var(--text-hint)' }}>— mín. 2 h de anticipación</span>
+                      ¿En qué franja horaria?
                     </p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                       {SLOTS.map(slot => {
-                        const pasado  = slotPasado(slot.horaInicio);
+                        const pasado  = slotPasado(slot.horaFin);
                         const activo  = franjaRecoleccion === slot.api;
                         return (
                           <button
