@@ -143,7 +143,7 @@ export default function EmpleadoDashboard() {
   const abrirAsignar = async (pedido: Pedido) => {
     setPedidoAsignar(pedido);
     setRepartidorSel('');
-    setTipoAsignacion(pedido.estado === 'LISTO' ? 'entrega' : 'recoleccion');
+    setTipoAsignacion(pedido.estado === 'EN_CAMINO' ? 'entrega' : 'recoleccion');
     try {
       const lista = await empleadoApi.getRepartidores('DISPONIBLE');
       setRepartidores(lista);
@@ -270,27 +270,17 @@ export default function EmpleadoDashboard() {
                             <button onClick={() => verDetalle(p)} title="Ver detalle" style={{ padding: '6px', borderRadius: 8, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                               <Eye style={{ width: 14, height: 14, color: 'var(--text-secondary)' }} />
                             </button>
-                            {((['PENDIENTE', 'CONFIRMADO'].includes(p.estado) && !p.repartidorRecoleccionId) || (p.estado === 'LISTO' && !p.repartidorEntregaId)) && (
+                            {((['PENDIENTE', 'CONFIRMADO'].includes(p.estado) && !p.repartidorRecoleccionId) || (p.estado === 'EN_CAMINO' && !p.repartidorEntregaId)) && (
                               <button onClick={() => abrirAsignar(p)} title="Asignar repartidor" style={{ padding: '6px', borderRadius: 8, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <UserCheck style={{ width: 14, height: 14, color: 'var(--text-secondary)' }} />
                               </button>
                             )}
                             {p.estado === 'RECOLECTADO' && (
-                              <button disabled={actualizando === p.id} onClick={() => cambiarEstado(p.id, 'en-proceso')}
-                                style={{ padding: '6px 12px', borderRadius: 8, border: 'none', backgroundColor: '#8b5cf6', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-                                {actualizando === p.id ? <Spinner className="w-3 h-3 border-white border-t-transparent" /> : <ClipboardList style={{ width: 12, height: 12 }} />}
-                                Iniciar lavado
-                              </button>
-                            )}
-                            {p.estado === 'EN_PROCESO' && (
-                              <button disabled={actualizando === p.id} onClick={() => cambiarEstado(p.id, 'listo')}
-                                style={{ padding: '6px 12px', borderRadius: 8, border: 'none', backgroundColor: '#14b8a6', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <button disabled={actualizando === p.id} onClick={() => cambiarEstado(p.id, 'avanzar')}
+                                style={{ padding: '6px 12px', borderRadius: 8, border: 'none', backgroundColor: '#22c55e', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
                                 {actualizando === p.id ? <Spinner className="w-3 h-3 border-white border-t-transparent" /> : <CheckCircle2 style={{ width: 12, height: 12 }} />}
-                                Marcar listo
+                                Listo
                               </button>
-                            )}
-                            {p.estado === 'LISTO' && !p.repartidorEntregaId && (
-                              <span style={{ fontSize: 12, color: '#14b8a6', fontWeight: 600 }}>Esperando repartidor</span>
                             )}
                           </div>
                         </td>
