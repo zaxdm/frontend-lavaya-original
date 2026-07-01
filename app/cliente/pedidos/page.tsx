@@ -169,10 +169,14 @@ export default function ClientePedidos() {
     return inicioSlot.getTime() < ahora.getTime() + MIN_ANTICIPACION_H * 60 * 60 * 1000;
   };
 
-  // La fecha mínima del picker siempre es hoy — los slots sin margen
-  // quedan visualmente deshabilitados dentro del día elegido.
+  // La fecha mínima del picker siempre es hoy en hora local.
+  // NO usar toISOString() porque convierte a UTC y puede dar ayer/mañana según el timezone.
   const fechaMinPicker = (): string => {
-    return new Date().toISOString().slice(0, 10);
+    const hoy = new Date();
+    const yyyy = hoy.getFullYear();
+    const mm   = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dd   = String(hoy.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
   };
 
   const slotsFiltrados = SLOTS.filter(s => !slotPasado(s.horaInicio));
@@ -384,7 +388,10 @@ export default function ClientePedidos() {
                   type="date"
                   value={fechaRecoleccion}
                   min={fechaMinPicker()}
-                  max={(() => { const d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); return d.toISOString().slice(0, 10); })()}
+                  max={(() => {
+                    const d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                  })()}
                   onChange={e => { setFechaRecoleccion(e.target.value); setFranjaRecoleccion(''); }}
                   style={S.input}
                 />
