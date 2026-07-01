@@ -22,7 +22,7 @@ const ESTADOS: EstadoPedido[] = ['PENDIENTE','CONFIRMADO','RECOLECTADO','EN_PROC
 const GRUPOS_ADMIN = [
   { value: '',              label: 'Todos',         estados: null as EstadoPedido[] | null },
   { value: 'por_recoger',  label: 'Por recoger',   estados: ['PENDIENTE','CONFIRMADO','RETRASADO','REPROGRAMADO'] as EstadoPedido[] },
-  { value: 'en_lavanderia',label: 'En lavandería', estados: ['RECOLECTADO','EN_PROCESO','LISTO'] as EstadoPedido[] },
+  { value: 'en_lavanderia',label: 'En lavandería', estados: ['RECOLECTADO'] as EstadoPedido[] },
   { value: 'camino',       label: 'En camino',     estados: ['EN_CAMINO'] as EstadoPedido[] },
   { value: 'entregado',    label: 'Entregado',     estados: ['ENTREGADO','CANCELADO'] as EstadoPedido[] },
 ];
@@ -63,12 +63,14 @@ export default function PedidosPage() {
     setLoading(true);
     try {
       const params: Record<string, string> = { page: String(page), limit: '15' };
-      if (filtroEstado) params.estado = filtroEstado;
+      // NO enviamos el filtroEstado al backend porque es un valor de grupo ('por_recoger',
+      // 'en_lavanderia', etc.), no un estado real del enum. El filtrado por grupo se aplica
+      // en el cliente sobre los pedidos ya cargados (ver pedidosFiltrados).
       const res = await adminApi.getPedidos(params);
       setPedidos(res.pedidos); setTotal(res.paginacion.total); setTotalPages(res.paginacion.totalPaginas);
     } catch { toast.error('Error cargando pedidos'); }
     finally { setLoading(false); }
-  }, [page, filtroEstado]);
+  }, [page]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -225,7 +227,7 @@ export default function PedidosPage() {
                           {['PENDIENTE','CONFIRMADO'].includes(p.estado) && !p.repartidorRecoleccionId && (
                             <button onClick={() => abrirAsignar(p)} title="Asignar repartidor de recojo" className="p-1.5 rounded-lg transition-colors hover:bg-green-50 hover:text-green-600" style={{ color: 'var(--text-secondary)' }}><UserCheck className="w-4 h-4" /></button>
                           )}
-                          {p.estado === 'LISTO' && !p.repartidorEntregaId && (
+                          {p.estado === 'EN_CAMINO' && !p.repartidorEntregaId && (
                             <button onClick={() => { setTipoAsignacion('entrega'); abrirAsignar(p); }} title="Asignar repartidor de entrega" className="p-1.5 rounded-lg transition-colors hover:bg-teal-50 hover:text-teal-600" style={{ color: 'var(--text-secondary)' }}><UserCheck className="w-4 h-4" /></button>
                           )}
                         </div>
