@@ -419,7 +419,7 @@ export default function ClientePedidos() {
                     </p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                       {SLOTS.map(slot => {
-                        const pasado  = slotPasado(slot.horaFin);
+                        const pasado  = slotPasado(slot.horaFin, slot.diaSig);
                         const activo  = franjaRecoleccion === slot.api;
                         return (
                           <button
