@@ -1,3 +1,4 @@
+'use client';
 // app/empleado/pedidos/page.tsx
 // Flujo simplificado del empleado:
 //   - Ve TODOS los pedidos activos (incluyendo por recoger, para tener visión)
