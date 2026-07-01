@@ -34,6 +34,8 @@ export default function ClientePedidos() {
   const [metodoPago, setMetodoPago] = useState<'PAYPAL' | 'EFECTIVO'>('EFECTIVO');
   const [fechaRecoleccion, setFechaRecoleccion] = useState('');
   const [franjaRecoleccion, setFranjaRecoleccion] = useState('');
+  const [franjaInicio, setFranjaInicio] = useState('');
+  const [franjaFin, setFranjaFin] = useState('');
   const [notas, setNotas] = useState('');
   const [puntosACanjear, setPuntosACanjear] = useState(0);
 
@@ -83,13 +85,13 @@ export default function ClientePedidos() {
 
     if (fechaRecoleccion) {
       if (!franjaRecoleccion) { toast.error('Selecciona una franja horaria'); return; }
-      // Verificar que la franja no haya terminado ya
-      const horaFin = SLOTS.find(s => s.api === franjaRecoleccion)?.horaFin ?? 0;
-      const finSlot = new Date(fechaRecoleccion + 'T00:00:00');
-      finSlot.setHours(horaFin, 0, 0, 0);
-      if (finSlot.getTime() <= Date.now()) { toast.error('Esta franja ya terminó, elige otra'); return; }
+      // Validar formato HH:MM-HH:MM
+      if (!/^\d{2}:\d{2}-\d{2}:\d{2}$/.test(franjaRecoleccion)) {
+        toast.error('Ingresa una hora de inicio y de fin válidas'); return;
+      }
       const maxFutura = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      if (finSlot > maxFutura) { toast.error('La fecha no puede ser más de 30 días en el futuro'); return; }
+      const inicioSlot = new Date(fechaRecoleccion + 'T' + franjaRecoleccion.split('-')[0] + ':00');
+      if (inicioSlot > maxFutura) { toast.error('La fecha no puede ser más de 30 días en el futuro'); return; }
     }
 
     const prendas = Object.entries(cantidades).filter(([, v]) => v > 0).map(([tipo, cantidad]) => ({ tipo, cantidad }));
@@ -158,32 +160,10 @@ export default function ClientePedidos() {
     }
   };
 
-  // ── Slots de franja horaria (2h cada uno, 08:00 → 03:00) ──────
-  const SLOTS = [
-    { label: '08:00 – 10:00', api: '08:00-10:00', horaInicio: 8,  horaFin: 10, diaSig: false },
-    { label: '10:00 – 12:00', api: '10:00-12:00', horaInicio: 10, horaFin: 12, diaSig: false },
-    { label: '12:00 – 14:00', api: '12:00-14:00', horaInicio: 12, horaFin: 14, diaSig: false },
-    { label: '14:00 – 16:00', api: '14:00-16:00', horaInicio: 14, horaFin: 16, diaSig: false },
-    { label: '16:00 – 18:00', api: '16:00-18:00', horaInicio: 16, horaFin: 18, diaSig: false },
-    { label: '18:00 – 20:00', api: '18:00-20:00', horaInicio: 18, horaFin: 20, diaSig: false },
-    { label: '20:00 – 22:00', api: '20:00-22:00', horaInicio: 20, horaFin: 22, diaSig: false },
-    { label: '22:00 – 00:00', api: '22:00-00:00', horaInicio: 22, horaFin:  0, diaSig: true  }, // termina a las 00:00 del día sig
-    { label: '00:00 – 03:00', api: '00:00-03:00', horaInicio:  0, horaFin:  3, diaSig: true  }, // inicia y termina en madrugada del día sig
-  ];
-
-  // Un slot está deshabilitado solo si su franja YA TERMINÓ completamente.
-  // Para slots nocturnos que cruzan la medianoche (diaSig=true), el fin se
-  // calcula sobre el día siguiente a la fecha de recolección seleccionada.
-  // Ej: son las 7:49 → el slot 08:00-10:00 termina a las 10:00, sigue disponible ✓
-  //     son las 10:05 → el slot 08:00-10:00 terminó a las 10:00, no disponible ✗
-  const slotPasado = (horaFin: number, diaSig: boolean): boolean => {
-    if (!fechaRecoleccion) return false;
-    const ahora = new Date();
-    const finSlot = new Date(fechaRecoleccion + 'T00:00:00');
-    if (diaSig) finSlot.setDate(finSlot.getDate() + 1); // fin en el día siguiente
-    finSlot.setHours(horaFin, 0, 0, 0);
-    return finSlot.getTime() <= ahora.getTime();
-  };
+  // ── Franja horaria libre: el usuario elige hora inicio y hora fin ──────
+  // Construye el string "HH:MM-HH:MM" para la API
+  const buildFranja = (inicio: string, fin: string): string =>
+    inicio && fin ? `${inicio}-${fin}` : '';
 
   // La fecha mínima del picker siempre es hoy en hora local.
   const fechaMinPicker = (): string => {
@@ -193,8 +173,6 @@ export default function ClientePedidos() {
     const dd   = String(hoy.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   };
-
-  const slotsFiltrados = SLOTS.filter(s => !slotPasado(s.horaFin, s.diaSig));
 
 
 
@@ -407,55 +385,53 @@ export default function ClientePedidos() {
                     const d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
                     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
                   })()}
-                  onChange={e => { setFechaRecoleccion(e.target.value); setFranjaRecoleccion(''); }}
+                  onChange={e => { setFechaRecoleccion(e.target.value); setFranjaRecoleccion(''); setFranjaInicio(''); setFranjaFin(''); }}
                   style={S.input}
                 />
 
-                {/* Franjas horarias — solo aparecen al elegir fecha */}
+                {/* Franja horaria libre — solo aparece al elegir fecha */}
                 {fechaRecoleccion && (
                   <div>
                     <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px', fontWeight: 600 }}>
                       ¿En qué franja horaria?
                     </p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {SLOTS.map(slot => {
-                        const pasado  = slotPasado(slot.horaFin, slot.diaSig);
-                        const activo  = franjaRecoleccion === slot.api;
-                        return (
-                          <button
-                            key={slot.api}
-                            disabled={pasado}
-                            onClick={() => !pasado && setFranjaRecoleccion(activo ? '' : slot.api)}
-                            style={{
-                              padding: '8px 14px',
-                              borderRadius: 10,
-                              border: `${activo ? 2 : 1}px solid ${pasado ? 'var(--border)' : activo ? 'var(--accent)' : 'var(--border)'}`,
-                              backgroundColor: pasado ? 'var(--bg-muted)' : activo ? 'var(--accent)' : 'var(--bg-base)',
-                              color: pasado ? 'var(--text-hint)' : activo ? '#fff' : 'var(--text-primary)',
-                              fontSize: 13,
-                              fontWeight: activo ? 700 : 500,
-                              cursor: pasado ? 'not-allowed' : 'pointer',
-                              textDecoration: pasado ? 'line-through' : 'none',
-                              opacity: pasado ? 0.5 : 1,
-                              transition: 'all 0.15s',
-                            }}
-                          >
-                            {slot.label}
-                          </button>
-                        );
-                      })}
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>Desde</label>
+                        <input
+                          type="time"
+                          value={franjaInicio}
+                          onChange={e => {
+                            setFranjaInicio(e.target.value);
+                            setFranjaRecoleccion(buildFranja(e.target.value, franjaFin));
+                          }}
+                          style={{ ...S.input, width: 120 }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>Hasta</label>
+                        <input
+                          type="time"
+                          value={franjaFin}
+                          onChange={e => {
+                            setFranjaFin(e.target.value);
+                            setFranjaRecoleccion(buildFranja(franjaInicio, e.target.value));
+                          }}
+                          style={{ ...S.input, width: 120 }}
+                        />
+                      </div>
+                      {franjaInicio && franjaFin && (
+                        <div style={{ alignSelf: 'flex-end', paddingBottom: 2, fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>
+                          {franjaInicio} – {franjaFin}
+                        </div>
+                      )}
                     </div>
-                    {slotsFiltrados.length === 0 && (
-                      <p style={{ fontSize: 12, color: 'var(--text-hint)', marginTop: 6 }}>
-                        No hay franjas disponibles para hoy. Elige otro día.
-                      </p>
-                    )}
                   </div>
                 )}
 
                 {fechaRecoleccion && (
                   <button
-                    onClick={() => { setFechaRecoleccion(''); setFranjaRecoleccion(''); }}
+                    onClick={() => { setFechaRecoleccion(''); setFranjaRecoleccion(''); setFranjaInicio(''); setFranjaFin(''); }}
                     style={{ alignSelf: 'flex-start', fontSize: 12, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                   >
                     ✕ Quitar fecha
