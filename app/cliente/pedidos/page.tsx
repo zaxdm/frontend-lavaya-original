@@ -157,6 +157,7 @@ export default function ClientePedidos() {
     { label: '14:00 – 16:00', api: '14:00-16:00', horaInicio: 14, horaFin: 16 },
     { label: '16:00 – 18:00', api: '16:00-18:00', horaInicio: 16, horaFin: 18 },
     { label: '18:00 – 20:00', api: '18:00-20:00', horaInicio: 18, horaFin: 20 },
+    { label: '20:00 – 22:00', api: '20:00-22:00', horaInicio: 20, horaFin: 22 },
   ];
 
   // Un slot está deshabilitado solo si su franja YA TERMINÓ completamente.
