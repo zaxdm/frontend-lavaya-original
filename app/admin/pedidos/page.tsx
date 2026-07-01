@@ -1,13 +1,13 @@
 'use client';
 // app/admin/pedidos/page.tsx
 import { useEffect, useState, useCallback } from 'react';
-import { Search, Filter, RefreshCw, Eye, UserCheck } from 'lucide-react';
+import { Search, RefreshCw, Eye, UserCheck } from 'lucide-react';
 import { adminApi, pedidosApi } from '@/lib/api';
 import {
   ESTADO_PEDIDO_LABEL, ESTADO_PEDIDO_COLOR,
-  ESTADO_PEDIDO_LABEL_SIMPLE, GRUPO_ESTADO,
+  ESTADO_PEDIDO_LABEL_SIMPLE,
   ESTADO_PAGO_LABEL, ESTADO_PAGO_COLOR,
-  formatDate, formatCurrency, cn,
+  formatDate, formatCurrency,
 } from '@/lib/utils';
 import type { Pedido, EstadoPedido, Repartidor } from '@/types';
 import PageHeader from '@/components/ui/PageHeader';
@@ -18,14 +18,13 @@ import toast from 'react-hot-toast';
 
 const ESTADOS: EstadoPedido[] = ['PENDIENTE','CONFIRMADO','RECOLECTADO','EN_PROCESO','LISTO','EN_CAMINO','ENTREGADO','CANCELADO'];
 
-// Grupos para el filtro rápido del admin — 4 grupos visibles
+// Grupos para los chips de filtro rápido
 const GRUPOS_ADMIN = [
-  { value: '',             label: 'Todos' },
-  { value: 'por_recoger',  label: 'Por recoger' },
-  { value: 'en_lavanderia',label: 'En lavandería' },
-  { value: 'camino',       label: 'En camino' },
-  { value: 'entregado',    label: 'Entregado' },
-  { value: 'cancelado',    label: 'Cancelado' },
+  { value: '',              label: 'Todos',         estados: null as EstadoPedido[] | null },
+  { value: 'por_recoger',  label: 'Por recoger',   estados: ['PENDIENTE','CONFIRMADO','RETRASADO','REPROGRAMADO'] as EstadoPedido[] },
+  { value: 'en_lavanderia',label: 'En lavandería', estados: ['RECOLECTADO','EN_PROCESO','LISTO'] as EstadoPedido[] },
+  { value: 'camino',       label: 'En camino',     estados: ['EN_CAMINO'] as EstadoPedido[] },
+  { value: 'entregado',    label: 'Entregado',     estados: ['ENTREGADO','CANCELADO'] as EstadoPedido[] },
 ];
 
 // Estilos inline con variables CSS — funcionan con cualquier versión de Tailwind
@@ -95,33 +94,69 @@ export default function PedidosPage() {
 
   const pedidosFiltrados = pedidos.filter(p => {
     const matchBuscar = !buscar || p.id.includes(buscar) || p.cliente?.nombre?.toLowerCase().includes(buscar.toLowerCase()) || p.cliente?.email?.toLowerCase().includes(buscar.toLowerCase());
-    // filtroEstado puede ser un grupo ('recibido','lavando',...) o un estado exacto ('PENDIENTE',...)
-    const isGrupo = GRUPOS_ADMIN.some(g => g.value === filtroEstado && g.value !== '');
-    const matchEstado = !filtroEstado ||
-      (isGrupo ? GRUPO_ESTADO[p.estado as EstadoPedido] === filtroEstado : p.estado === filtroEstado);
+    const grupo = GRUPOS_ADMIN.find(g => g.value === filtroEstado);
+    const matchEstado = !filtroEstado || (grupo?.estados ? grupo.estados.includes(p.estado as EstadoPedido) : true);
     return matchBuscar && matchEstado;
   });
+
+  // Conteo por grupo (sobre todos los pedidos cargados)
+  const contarGrupo = (estados: EstadoPedido[] | null) =>
+    estados ? pedidos.filter(p => estados.includes(p.estado as EstadoPedido)).length : pedidos.length;
 
   return (
     <div style={S.page}>
       <PageHeader title="Gestión de Pedidos" subtitle={`${total} pedidos en total`} />
 
-      {/* Filtros */}
-      <div style={S.toolbar}>
-        <div className="relative" style={{ flex: 1, minWidth: 200, maxWidth: 320 }}>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-hint)' }} />
-          <input value={buscar} onChange={e => setBuscar(e.target.value)} placeholder="Buscar por cliente o ID..." style={S.input} />
+      {/* Chips de grupo + barra de búsqueda */}
+      <div style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
+        {/* Chips */}
+        <div style={{ padding: '12px 24px 0', display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+          {GRUPOS_ADMIN.map(g => {
+            const activo = filtroEstado === g.value;
+            const n = contarGrupo(g.estados);
+            return (
+              <button
+                key={g.value}
+                onClick={() => { setFiltroEstado(g.value); setPage(1); }}
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: 999,
+                  border: `1.5px solid ${activo ? 'var(--accent)' : 'var(--border)'}`,
+                  backgroundColor: activo ? 'var(--accent)' : 'var(--bg-base)',
+                  color: activo ? '#fff' : 'var(--text-secondary)',
+                  fontSize: 13,
+                  fontWeight: activo ? 700 : 500,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {g.label}
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  backgroundColor: activo ? 'rgba(255,255,255,0.25)' : 'var(--bg-muted)',
+                  color: activo ? '#fff' : 'var(--text-secondary)',
+                  padding: '1px 7px',
+                  borderRadius: 999,
+                }}>
+                  {n}
+                </span>
+              </button>
+            );
+          })}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Filter className="w-4 h-4" style={{ color: 'var(--text-hint)' }} />
-          <select value={filtroEstado} onChange={e => { setFiltroEstado(e.target.value); setPage(1); }} style={S.select}>
-            <option value="">Todos los estados</option>
-            {GRUPOS_ADMIN.slice(1).map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
-            <option disabled>──────────</option>
-            {ESTADOS.map(e => <option key={e} value={e}>{ESTADO_PEDIDO_LABEL[e]} (detalle)</option>)}
-          </select>
+
+        {/* Barra de búsqueda y acciones */}
+        <div style={{ padding: '10px 24px 12px', display: 'flex', flexWrap: 'wrap' as const, alignItems: 'center', gap: 12 }}>
+          <div className="relative" style={{ flex: 1, minWidth: 200, maxWidth: 360 }}>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-hint)' }} />
+            <input value={buscar} onChange={e => setBuscar(e.target.value)} placeholder="Buscar por cliente o ID..." style={S.input} />
+          </div>
+          <button onClick={load} style={S.btnSm}><RefreshCw className="w-3.5 h-3.5" /> Actualizar</button>
         </div>
-        <button onClick={load} style={S.btnSm}><RefreshCw className="w-3.5 h-3.5" /> Actualizar</button>
       </div>
 
       {/* Tabla */}
