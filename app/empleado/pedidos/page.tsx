@@ -1,11 +1,9 @@
-'use client';
 // app/empleado/pedidos/page.tsx
-// Flujo real del empleado:
+// Flujo simplificado del empleado:
 //   - Ve TODOS los pedidos activos (incluyendo por recoger, para tener visión)
-//   - Solo puede ACTUAR en pedidos que ya están en la lavandería:
-//       RECOLECTADO → "Iniciar lavado" → EN_PROCESO
-//       EN_PROCESO  → "Listo"          → LISTO
-//   - PENDIENTE/CONFIRMADO: solo asignar repartidor, no puede "lavar"
+//   - Solo da UN clic cuando la ropa está lista:
+//       RECOLECTADO → "Listo" → EN_CAMINO  (notifica a repartidores disponibles)
+//   - PENDIENTE/CONFIRMADO: solo asignar repartidor de recojo
 import { useEffect, useState, useCallback } from 'react';
 import {
   Package, RefreshCw, Eye, UserCheck,
@@ -43,14 +41,10 @@ const GRUPOS = [
   { key: 'entregado',     label: 'Entregado',     icon: CheckCircle2,  color: '#22c55e', bg: 'rgba(34,197,94,0.1)'   },
 ];
 
-// Acción del empleado según estado
+// Acción del empleado: solo 1 botón "Listo" cuando el pedido está RECOLECTADO
 function getAccion(estado: EstadoPedido): { label: string; icon: React.ElementType; color: string } | null {
   if (estado === 'RECOLECTADO')
-    return { label: 'Iniciar lavado', icon: WashingMachine, color: '#8b5cf6' };
-  if (estado === 'EN_PROCESO')
-    return { label: 'Marcar listo', icon: CheckCircle2, color: '#14b8a6' };
-  if (estado === 'LISTO')
-    return { label: 'Despachar — En camino', icon: Truck, color: '#f97316' };
+    return { label: 'Listo — Notificar repartidores', icon: CheckCircle2, color: '#22c55e' };
   return null;
 }
 
@@ -136,7 +130,7 @@ export default function EmpleadoPedidos() {
     setPedidoAsignar(pedido);
     setRepartidorSel('');
     // Tipo de asignación automático según estado
-    setTipoAsignacion(pedido.estado === 'LISTO' ? 'entrega' : 'recoleccion');
+    setTipoAsignacion(pedido.estado === 'EN_CAMINO' ? 'entrega' : 'recoleccion');
     try { const lista = await empleadoApi.getRepartidores('DISPONIBLE'); setRepartidores(lista); }
     catch { toast.error('Error cargando repartidores'); }
     setShowAsignar(true);
@@ -282,7 +276,7 @@ export default function EmpleadoPedidos() {
                     const accion = getAccion(p.estado);
                     const puedeAsignar =
                       (['PENDIENTE','CONFIRMADO'].includes(p.estado) && !p.repartidorRecoleccionId) ||
-                      (p.estado === 'LISTO' && !p.repartidorEntregaId);
+                      (p.estado === 'EN_CAMINO' && !p.repartidorEntregaId);
 
                     return (
                       <tr key={p.id}
@@ -360,10 +354,10 @@ export default function EmpleadoPedidos() {
                             {/* Asignar repartidor */}
                             {puedeAsignar && (
                               <button onClick={() => abrirAsignar(p)}
-                                title={p.estado === 'LISTO' ? 'Asignar repartidor de entrega' : 'Asignar repartidor de recolección'}
+                                title={p.estado === 'EN_CAMINO' ? 'Asignar repartidor de entrega' : 'Asignar repartidor de recolección'}
                                 style={{ padding: '6px 10px', borderRadius: 8, border: '1.5px solid #f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', color: '#d97706', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' as const }}>
                                 <UserCheck style={{ width: 13, height: 13 }} />
-                                {p.estado === 'LISTO' ? 'Asignar entrega' : 'Asignar recojo'}
+                                {p.estado === 'EN_CAMINO' ? 'Asignar entrega' : 'Asignar recojo'}
                               </button>
                             )}
 
