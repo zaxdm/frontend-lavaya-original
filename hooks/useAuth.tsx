@@ -24,10 +24,10 @@ function loginRouteForRole(_rol?: Rol): string {
 
 // Devuelve el home correcto según rol
 function homeRouteForRole(rol: Rol): string {
-  if (rol === 'ADMIN')      return '/admin/dashboard';
-  if (rol === 'EMPLEADO')   return '/empleado/dashboard';
-  if (rol === 'CLIENTE')    return '/cliente/dashboard';
-  if (rol === 'REPARTIDOR') return '/cliente/dashboard'; // repartidor usa portal cliente por ahora
+  if (rol === 'ADMIN')    return '/admin/dashboard';
+  if (rol === 'EMPLEADO') return '/empleado/dashboard';
+  if (rol === 'CLIENTE')  return '/cliente/dashboard';
+  // REPARTIDOR no tiene acceso a la web — solo usa la app Flutter
   return '/cliente/dashboard';
 }
 
@@ -44,6 +44,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!token) { setLoading(false); return; }
       try {
         const me = await authApi.me();
+        // Si el token guardado pertenece a un repartidor, limpiar sesión
+        if (me.rol === 'REPARTIDOR') {
+          tokenStorage.clear();
+          setLoading(false);
+          return;
+        }
         setUser(me);
       } catch {
         tokenStorage.clear();
@@ -56,6 +62,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const data = await authApi.login(email, password);
+    if (data.usuario.rol === 'REPARTIDOR') {
+      // No guardar tokens ni sesión — bloquear acceso web
+      throw new Error('Los repartidores solo pueden acceder desde la app móvil LavaYa.');
+    }
     tokenStorage.set(data.accessToken, data.refreshToken);
     setUser(data.usuario);
     router.push(homeRouteForRole(data.usuario.rol));
@@ -63,6 +73,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginGoogle = useCallback(async (idToken: string) => {
     const data = await authApi.loginGoogle(idToken);
+    if (data.usuario.rol === 'REPARTIDOR') {
+      throw new Error('Los repartidores solo pueden acceder desde la app móvil LavaYa.');
+    }
     tokenStorage.set(data.accessToken, data.refreshToken);
     setUser(data.usuario);
     router.push(homeRouteForRole(data.usuario.rol));
