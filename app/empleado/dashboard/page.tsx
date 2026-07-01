@@ -110,15 +110,18 @@ export default function EmpleadoDashboard() {
   }, [authLoading, user, loadVentas]);
 
   // ── Cambiar estado usando empleadoApi ──
-  const cambiarEstado = async (id: string, accion: 'en-proceso' | 'listo') => {
+  const cambiarEstado = async (id: string, accion: 'en-proceso' | 'listo' | 'avanzar') => {
     setActualizando(id);
     try {
       if (accion === 'en-proceso') {
         await empleadoApi.marcarEnProceso(id);
         toast.success('Pedido en proceso de lavado');
-      } else {
+      } else if (accion === 'listo') {
         await empleadoApi.marcarListo(id);
         toast.success('Pedido marcado como listo');
+      } else {
+        await empleadoApi.avanzarPedido(id);
+        toast.success('Listo — repartidores notificados');
       }
       loadPedidos();
     } catch (err: unknown) {
