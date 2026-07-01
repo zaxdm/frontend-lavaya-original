@@ -158,24 +158,29 @@ export default function ClientePedidos() {
     }
   };
 
-  // ── Slots de franja horaria (2h cada uno, 08:00 → 20:00) ──────
+  // ── Slots de franja horaria (2h cada uno, 08:00 → 03:00) ──────
   const SLOTS = [
-    { label: '08:00 – 10:00', api: '08:00-10:00', horaInicio: 8,  horaFin: 10 },
-    { label: '10:00 – 12:00', api: '10:00-12:00', horaInicio: 10, horaFin: 12 },
-    { label: '12:00 – 14:00', api: '12:00-14:00', horaInicio: 12, horaFin: 14 },
-    { label: '14:00 – 16:00', api: '14:00-16:00', horaInicio: 14, horaFin: 16 },
-    { label: '16:00 – 18:00', api: '16:00-18:00', horaInicio: 16, horaFin: 18 },
-    { label: '18:00 – 20:00', api: '18:00-20:00', horaInicio: 18, horaFin: 20 },
-    { label: '20:00 – 22:00', api: '20:00-22:00', horaInicio: 20, horaFin: 22 },
+    { label: '08:00 – 10:00', api: '08:00-10:00', horaInicio: 8,  horaFin: 10, diaSig: false },
+    { label: '10:00 – 12:00', api: '10:00-12:00', horaInicio: 10, horaFin: 12, diaSig: false },
+    { label: '12:00 – 14:00', api: '12:00-14:00', horaInicio: 12, horaFin: 14, diaSig: false },
+    { label: '14:00 – 16:00', api: '14:00-16:00', horaInicio: 14, horaFin: 16, diaSig: false },
+    { label: '16:00 – 18:00', api: '16:00-18:00', horaInicio: 16, horaFin: 18, diaSig: false },
+    { label: '18:00 – 20:00', api: '18:00-20:00', horaInicio: 18, horaFin: 20, diaSig: false },
+    { label: '20:00 – 22:00', api: '20:00-22:00', horaInicio: 20, horaFin: 22, diaSig: false },
+    { label: '22:00 – 00:00', api: '22:00-00:00', horaInicio: 22, horaFin:  0, diaSig: true  }, // termina a las 00:00 del día sig
+    { label: '00:00 – 03:00', api: '00:00-03:00', horaInicio:  0, horaFin:  3, diaSig: true  }, // inicia y termina en madrugada del día sig
   ];
 
   // Un slot está deshabilitado solo si su franja YA TERMINÓ completamente.
+  // Para slots nocturnos que cruzan la medianoche (diaSig=true), el fin se
+  // calcula sobre el día siguiente a la fecha de recolección seleccionada.
   // Ej: son las 7:49 → el slot 08:00-10:00 termina a las 10:00, sigue disponible ✓
   //     son las 10:05 → el slot 08:00-10:00 terminó a las 10:00, no disponible ✗
-  const slotPasado = (horaFin: number): boolean => {
+  const slotPasado = (horaFin: number, diaSig: boolean): boolean => {
     if (!fechaRecoleccion) return false;
     const ahora = new Date();
     const finSlot = new Date(fechaRecoleccion + 'T00:00:00');
+    if (diaSig) finSlot.setDate(finSlot.getDate() + 1); // fin en el día siguiente
     finSlot.setHours(horaFin, 0, 0, 0);
     return finSlot.getTime() <= ahora.getTime();
   };
@@ -189,7 +194,7 @@ export default function ClientePedidos() {
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  const slotsFiltrados = SLOTS.filter(s => !slotPasado(s.horaFin));
+  const slotsFiltrados = SLOTS.filter(s => !slotPasado(s.horaFin, s.diaSig));
 
 
 
