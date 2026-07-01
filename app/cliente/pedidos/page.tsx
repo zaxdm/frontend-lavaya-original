@@ -93,9 +93,10 @@ export default function ClientePedidos() {
     }
 
     const prendas = Object.entries(cantidades).filter(([, v]) => v > 0).map(([tipo, cantidad]) => ({ tipo, cantidad }));
-    // Construir ISO del inicio de la franja elegida
+    // Construir la fecha en hora local (NO usar toISOString que convierte a UTC)
+    // Formato: "2026-06-30T08:00:00" — el backend lo parsea como hora local del servidor
     const fechaISO = fechaRecoleccion && franjaRecoleccion
-      ? new Date(fechaRecoleccion + 'T' + franjaRecoleccion.split('-')[0] + ':00').toISOString()
+      ? `${fechaRecoleccion}T${franjaRecoleccion.split('-')[0]}:00`
       : null;
     const payload = {
       direccionId, prendas, metodoPago,
